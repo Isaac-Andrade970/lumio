@@ -12,6 +12,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   const [categoria, setCategoria] = useState(inicial?.categoria ?? null)
   const [nota, setNota] = useState(inicial?.nota ?? '')
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyISO())
+  const [error, setError] = useState('')
 
 // Si "inicial" trae un id, es un movimiento que ya existe: estamos editando
   const editando = Boolean(inicial?.id)
