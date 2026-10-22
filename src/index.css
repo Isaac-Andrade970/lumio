@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* El modo oscuro sigue la configuración del iPhone automáticamente */
+
+html,
+body {
+  background: var(--color-stone-100);
+  -webkit-tap-highlight-color: transparent; /* quita el destello gris al tocar en iOS */
+  overscroll-behavior-y: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    background: var(--color-stone-950);
+  }
+}
+
+/* Márgenes seguros para el notch y la barra de inicio del iPhone */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 1rem);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Animación de la hoja que sube desde abajo */
+@keyframes subir {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.hoja-entrar {
+  animation: subir 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.fondo-entrar {
+  animation: aparecer 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hoja-entrar,
+  .fondo-entrar {
+    animation: none;
+  }
+}
