@@ -4,7 +4,7 @@ import { formatearPesos, hoyISO, mesDe, nombreMes } from '../lib/formato.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
 
 // Pantalla de inicio: saldo del mes, top categorías y últimos movimientos
-export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo }) {
+export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar }) {
   const mes = mesDe(hoyISO())
   const { ingresos, gastos, saldo } = resumenDelMes(movimientos, mes)
   const top = gastosPorCategoria(movimientos, mes).slice(0, 3)
@@ -82,7 +82,7 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo }) {
         </div>
         <ul className="divide-y divide-stone-100 dark:divide-stone-800">
           {ultimos.map((m) => (
-            <FilaMovimiento key={m.id} mov={m} />
+            <FilaMovimiento key={m.id} mov={m} alEditar={alEditar} />
           ))}
         </ul>
       </section>

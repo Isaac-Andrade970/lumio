@@ -42,9 +42,19 @@ export default function App() {
     setHojaAbierta(true)
   }
 
-  function alGuardar(mov) {
-    setHojaAbierta(false)
+  function abrirEdicion(mov) {
+  setInicial(mov) // la hoja se abre con los datos de este movimiento
+  setHojaAbierta(true)
+  }
+
+// "anterior" solo viene cuando se editó: sirve para deshacer el cambio
+  function alGuardar(mov, anterior) {
+  setHojaAbierta(false)
+  if (anterior) {
+    mostrarAviso('Cambios guardados', () => restaurarMovimiento(anterior))
+  } else {
     mostrarAviso('Guardado', () => borrarMovimiento(mov.id))
+  }
   }
 
   async function alBorrar(mov) {
@@ -68,9 +78,14 @@ export default function App() {
 
       <main className="px-4 pb-32">
         {pestana === 'inicio' ? (
-          <Inicio movimientos={movimientos} alVerTodo={() => setPestana('movimientos')} alCargarEjemplo={cargarEjemplo} />
+          <Inicio
+            movimientos={movimientos}
+            alVerTodo={() => setPestana('movimientos')}
+            alCargarEjemplo={cargarEjemplo}
+            alEditar={abrirEdicion}
+          />
         ) : (
-          <Movimientos movimientos={movimientos} alBorrar={alBorrar} />
+          <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
         )}
       </main>
 

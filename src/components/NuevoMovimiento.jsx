@@ -2,20 +2,24 @@ import { useState } from 'react'
 import { CATEGORIAS, categoriaOtros } from '../lib/categorias.js'
 import { ordenarPorUso } from '../lib/calculos.js'
 import { formatearPesos, hoyISO } from '../lib/formato.js'
-import { agregarMovimiento, esPosibleDuplicado } from '../db.js'
+import { agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
 
 // Hoja que sube desde abajo para anotar un gasto o ingreso.
 // "inicial" trae datos pre-rellenados (por ejemplo, desde un Atajo de Apple Pay).
 export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuardar }) {
   const [tipo, setTipo] = useState(inicial?.tipo ?? 'gasto')
   const [monto, setMonto] = useState(inicial?.monto ?? 0)
-  const [categoria, setCategoria] = useState(null)
+  const [categoria, setCategoria] = useState(inicial?.categoria ?? null)
   const [nota, setNota] = useState(inicial?.nota ?? '')
-  const [fecha, setFecha] = useState(hoyISO())
-  const [error, setError] = useState('')
+  const [fecha, setFecha] = useState(inicial?.fecha ?? hoyISO())
+
+// Si "inicial" trae un id, es un movimiento que ya existe: estamos editando
+  const editando = Boolean(inicial?.id)
   const [avisoDuplicado, setAvisoDuplicado] = useState(false)
 
-  const categorias = ordenarPorUso(CATEGORIAS[tipo], movimientos)
+  const categorias = ordenarPorUso(CATEGORIAS[tipo], movimientos).sort(
+  (a, b) => (b.id === inicial?.categoria) - (a.id === inicial?.categoria),
+  )
 
   function cambiarTipo(nuevo) {
     setTipo(nuevo)
@@ -40,6 +44,10 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       fecha,
       nota: nota.trim(),
       origen: inicial?.origen ?? 'manual',
+    }
+    if (editando) {
+    await actualizarMovimiento(inicial.id, mov)
+    return alGuardar({ ...mov, id: inicial.id }, inicial) // "inicial" = cómo estaba antes
     }
     if (!forzar && (await esPosibleDuplicado(mov))) return setAvisoDuplicado(true)
     const id = await agregarMovimiento(mov)
@@ -154,7 +162,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             onClick={() => guardar()}
             className="w-full rounded-2xl bg-teal-700 py-4 text-lg font-semibold text-white active:scale-[0.98] active:bg-teal-800"
           >
-            Guardar
+            {editando ? 'Guardar cambios' : 'Guardar'}
           </button>
         )}
       </div>
