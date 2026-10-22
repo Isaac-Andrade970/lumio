@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo } from './calculos.js'
+import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro } from './calculos.js'
 import { formatearPesos, leerMonto } from './formato.js'
 
 const movs = [
@@ -57,5 +57,21 @@ describe('leerLinkNuevo', () => {
   })
   it('ignora otros links', () => {
     expect(leerLinkNuevo('#movimientos')).toBeNull()
+  })
+})
+
+describe('proyectarAhorro', () => {
+  it('sin interés es simplemente mensual × meses', () => {
+    expect(proyectarAhorro({ mensual: 50000, meses: 12 })).toEqual({
+      total: 600000,
+      aportado: 600000,
+      intereses: 0,
+    })
+  })
+  it('con interés compuesto gana más de lo aportado', () => {
+    // 12% anual = 1% al mes. Valor conocido: 100.000 × ((1,01^12 − 1) / 0,01) ≈ 1.268.250
+    const r = proyectarAhorro({ mensual: 100000, meses: 12, tasaAnual: 12 })
+    expect(r.total).toBe(1268250)
+    expect(r.intereses).toBe(68250)
   })
 })
