@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 
 // Base de datos local en el navegador (IndexedDB), manejada con Dexie.
 // Todo queda guardado en el teléfono: nada se envía a internet.
-export const db = new Dexie('bolsillo')
+export const db = new Dexie('lumio')
 
 // Versión 1 del "esquema". Solo se listan los campos por los que se busca u ordena;
 // el resto (nota, medioPago, comercio...) se guarda igual sin declararlo.

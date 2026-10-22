@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate', // se actualiza sola cuando publicas cambios
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Bolsillo',
-        short_name: 'Bolsillo',
+        name: 'Lumio',
+        short_name: 'Lumio',
         description: 'Mis gastos, ingresos y ahorro',
         lang: 'es-CL',
         theme_color: '#0f766e',
