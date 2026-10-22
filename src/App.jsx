@@ -6,6 +6,10 @@ import { datosDeEjemplo } from './lib/ejemplo.js'
 import Inicio from './components/Inicio.jsx'
 import Movimientos from './components/Movimientos.jsx'
 import NuevoMovimiento from './components/NuevoMovimiento.jsx'
+import Ahorro from './components/Ahorro.jsx'
+
+// Título que se muestra arriba según la pestaña activa
+const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro' }
 
 export default function App() {
   const [pestana, setPestana] = useState('inicio')
@@ -70,24 +74,26 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-md">
-      <header className="safe-top px-4 pb-3">
+        <header className="safe-top px-4 pb-3">
         <h1 className="text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          {pestana === 'inicio' ? 'Lumio' : 'Movimientos'}
+          {TITULOS[pestana]}
         </h1>
-      </header>
+        </header>
 
-      <main className="px-4 pb-32">
-        {pestana === 'inicio' ? (
-          <Inicio
-            movimientos={movimientos}
-            alVerTodo={() => setPestana('movimientos')}
-            alCargarEjemplo={cargarEjemplo}
-            alEditar={abrirEdicion}
-          />
-        ) : (
-          <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
-        )}
-      </main>
+        <main className="px-4 pb-32">
+          {pestana === 'inicio' && (
+            <Inicio
+              movimientos={movimientos}
+              alVerTodo={() => setPestana('movimientos')}
+              alCargarEjemplo={cargarEjemplo}
+              alEditar={abrirEdicion}
+            />
+          )}
+          {pestana === 'movimientos' && (
+            <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
+          )}
+          {pestana === 'ahorro' && <Ahorro />}
+        </main>
 
       {/* Aviso temporal con opción de deshacer */}
       {aviso && (
@@ -109,26 +115,28 @@ export default function App() {
       )}
 
       {/* Barra de pestañas con el botón + al centro */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 border-t border-stone-200 bg-white/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
-        <div className="mx-auto grid max-w-md grid-cols-3 items-center pt-2">
-          <BotonPestana activa={pestana === 'inicio'} onClick={() => setPestana('inicio')} icono="🏠" texto="Inicio" />
-          <div className="flex justify-center">
-            <button
-              onClick={abrirHoja}
-              aria-label="Nuevo movimiento"
-              className="-mt-6 grid size-16 place-items-center rounded-full bg-teal-700 text-4xl leading-none text-white shadow-lg shadow-teal-900/30 active:scale-95"
-            >
-              +
-            </button>
+        <nav className="safe-bottom fixed inset-x-0 bottom-0 border-t border-stone-200 bg-white/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
+          <div className="mx-auto grid max-w-md grid-cols-5 items-center pt-2">
+            <BotonPestana activa={pestana === 'inicio'} onClick={() => setPestana('inicio')} icono="🏠" texto="Inicio" />
+            <BotonPestana
+              activa={pestana === 'movimientos'}
+              onClick={() => setPestana('movimientos')}
+              icono="📋"
+              texto="Movimientos"
+            />
+            <div className="flex justify-center">
+              <button
+                onClick={abrirHoja}
+                aria-label="Nuevo movimiento"
+                className="-mt-6 grid size-16 place-items-center rounded-full bg-teal-700 text-4xl leading-none text-white shadow-lg shadow-teal-900/30 active:scale-95"
+              >
+                +
+              </button>
+            </div>
+            <BotonPestana activa={pestana === 'ahorro'} onClick={() => setPestana('ahorro')} icono="🐷" texto="Ahorro" />
+            <div aria-hidden="true" /> {/* espacio libre: aquí irá la pestaña Análisis */}
           </div>
-          <BotonPestana
-            activa={pestana === 'movimientos'}
-            onClick={() => setPestana('movimientos')}
-            icono="📋"
-            texto="Movimientos"
-          />
-        </div>
-      </nav>
+        </nav>
 
       {hojaAbierta && (
         <NuevoMovimiento

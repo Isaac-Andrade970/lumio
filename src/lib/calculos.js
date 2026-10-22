@@ -63,3 +63,17 @@ export function leerLinkNuevo(hash) {
     tipo: params.get('tipo') === 'ingreso' ? 'ingreso' : 'gasto',
   }
 }
+
+// Proyecta cuánto juntas ahorrando "mensual" pesos durante "meses" meses.
+// tasaAnual en %, por ejemplo 4. El interés se capitaliza cada mes (interés compuesto).
+// Devuelve { total, aportado, intereses }
+export function proyectarAhorro({ mensual, meses, tasaAnual = 0 }) {
+  const tasaMensual = tasaAnual / 100 / 12
+  let saldo = 0
+  for (let mes = 1; mes <= meses; mes++) {
+    saldo = saldo * (1 + tasaMensual) + mensual // lo que había crece, y se suma el aporte del mes
+  }
+  const total = Math.round(saldo)
+  const aportado = mensual * meses
+  return { total, aportado, intereses: total - aportado }
+}
