@@ -27,6 +27,10 @@ export function agregarMovimiento(mov) {
   return db.movimientos.add({ ...mov, creado: Date.now() })
 }
 
+export function actualizarMovimiento(id, cambios) {
+  return db.movimientos.update(id, cambios) // cambia solo los campos indicados
+}
+
 export function borrarMovimiento(id) {
   return db.movimientos.delete(id)
 }

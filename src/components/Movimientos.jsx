@@ -4,7 +4,7 @@ import { formatearPesos, nombreDia } from '../lib/formato.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
 
 // Lista completa, agrupada por día, con filtro por tipo y búsqueda
-export default function Movimientos({ movimientos, alBorrar }) {
+export default function Movimientos({ movimientos, alEditar, alBorrar }) {
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
 
@@ -61,7 +61,7 @@ export default function Movimientos({ movimientos, alBorrar }) {
           </div>
           <ul className="divide-y divide-stone-100 dark:divide-stone-800">
             {g.movimientos.map((m) => (
-              <FilaMovimiento key={m.id} mov={m} alBorrar={alBorrar} />
+              <FilaMovimiento key={m.id} mov={m} alEditar={alEditar} alBorrar={alBorrar} />
             ))}
           </ul>
         </section>
