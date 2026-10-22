@@ -1,4 +1,4 @@
-# Bolsillo 👛
+# Lumio ✨
 
 App personal de finanzas para iPhone, hecha como **PWA** (web app instalable). Registra gastos e ingresos, los agrupa por categoría y (próximamente) proyecta cuánto puedes ahorrar.
 
@@ -32,7 +32,7 @@ React · Vite · Tailwind CSS · Dexie.js (IndexedDB) · vite-plugin-pwa · Vite
 
 ### 2. Abre la carpeta del proyecto
 
-Descomprime el zip, abre la carpeta `bolsillo` en VS Code y abre la terminal (menú *Terminal → New Terminal*).
+Descomprime el zip, abre la carpeta `lumio` en VS Code y abre la terminal (menú *Terminal → New Terminal*).
 
 ### 3. Instala las dependencias y arranca
 
@@ -61,10 +61,10 @@ Si no carga, Windows probablemente está bloqueando la conexión: acepta el avis
 
 1. Crea un repositorio en GitHub y sube el proyecto:
    ```bash
-   git remote add origin https://github.com/TU_USUARIO/bolsillo.git
+   git remote add origin https://github.com/TU_USUARIO/lumio.git
    git push -u origin main
    ```
-2. Entra a https://vercel.com con tu cuenta de GitHub → *Add New Project* → elige `bolsillo` → *Deploy*. Vercel detecta Vite solo.
+2. Entra a https://vercel.com con tu cuenta de GitHub → *Add New Project* → elige `lumio` → *Deploy*. Vercel detecta Vite solo.
 3. Abre el link que te da Vercel en **Safari** del iPhone → botón **Compartir** → **Agregar a inicio**.
 
 Cada vez que hagas `git push`, Vercel publica la nueva versión y la app se actualiza sola.

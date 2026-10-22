@@ -62,7 +62,7 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-md">
       <header className="safe-top px-4 pb-3">
         <h1 className="text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          {pestana === 'inicio' ? 'Bolsillo' : 'Movimientos'}
+          {pestana === 'inicio' ? 'Lumio' : 'Movimientos'}
         </h1>
       </header>
 
