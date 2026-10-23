@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, borrarMovimiento, restaurarMovimiento } from './db.js'
+import { db, borrarMovimiento, restaurarMovimiento, importarMovimientos } from './db.js'
+import { leerArchivoWallet } from './lib/wallet.js'
+import { bandeja, leerClave, guardarClave } from './lib/bandeja.js'
 import { leerLinkNuevo } from './lib/calculos.js'
 import { datosDeEjemplo } from './lib/ejemplo.js'
 import Inicio from './components/Inicio.jsx'
@@ -18,6 +20,8 @@ export default function App() {
   const [inicial, setInicial] = useState(null)
   const [aviso, setAviso] = useState(null) // { texto, deshacer }
   const temporizador = useRef(null)
+  const [claveWallet, setClaveWallet] = useState(leerClave) // '' = no conectada
+  const sincronizando = useRef(false) // evita revisar la bandeja dos veces al mismo tiempo
 
   // useLiveQuery: la pantalla se actualiza sola cada vez que cambia la base de datos
   const movimientos = useLiveQuery(() => db.movimientos.toArray(), [], null)
@@ -67,6 +71,53 @@ export default function App() {
     mostrarAviso('Movimiento borrado', () => restaurarMovimiento(mov))
   }
 
+    // Trae los pagos de la bandeja de Supabase, los guarda en el teléfono y recién ahí los borra de la nube
+  async function sincronizarWallet(clave = claveWallet) {
+    if (!bandeja || !clave || sincronizando.current) return
+    sincronizando.current = true
+    try {
+      const filas = await bandeja.leer(clave)
+      if (filas.length === 0) return
+
+      const texto = filas.map((f) => f.linea).join('\n')
+      const { movimientos: leidos } = leerArchivoWallet(texto)
+      const idsNuevos = await importarMovimientos(leidos) // 1) guardar en el teléfono
+      await bandeja.borrar(clave, filas.map((f) => f.id)) // 2) solo después, borrar de la nube
+
+      if (idsNuevos.length > 0) {
+        const texto = idsNuevos.length === 1 ? '1 pago de Wallet agregado' : `${idsNuevos.length} pagos de Wallet agregados`
+        mostrarAviso(texto, () => db.movimientos.bulkDelete(idsNuevos))
+      }
+    } catch (error) {
+      // Sin internet u otro problema: no pasa nada, se reintenta la próxima vez que abras la app
+      console.warn('No se pudo revisar la bandeja de Wallet:', error.message)
+    } finally {
+      sincronizando.current = false
+    }
+  }
+
+  // Revisa la bandeja al abrir la app y cada vez que vuelves a ella desde otra app
+  useEffect(() => {
+    sincronizarWallet()
+    function alVolver() {
+      if (document.visibilityState === 'visible') sincronizarWallet()
+    }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
+  }, [claveWallet]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prueba la clave contra Supabase; si funciona, la guarda en el teléfono
+  async function conectarWallet(clave) {
+    await bandeja.leer(clave) // si la clave es incorrecta, esto lanza un error y no se guarda
+    guardarClave(clave)
+    setClaveWallet(clave) // al cambiar, el useEffect de arriba sincroniza solo
+  }
+
+  function desconectarWallet() {
+    guardarClave('')
+    setClaveWallet('')
+  }
+
   async function cargarEjemplo() {
     await db.movimientos.bulkAdd(datosDeEjemplo())
   }
@@ -91,7 +142,18 @@ export default function App() {
             />
           )}
           {pestana === 'movimientos' && (
-            <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
+            <Movimientos
+            movimientos={movimientos}
+            alEditar={abrirEdicion}
+            alBorrar={alBorrar}
+            wallet={
+              bandeja && {
+                conectada: Boolean(claveWallet),
+                alConectar: conectarWallet,
+                alDesconectar: desconectarWallet,
+              }
+            }
+            />
           )}
           {pestana === 'ahorro' && <Ahorro />}
           {pestana === 'analisis' && <Analisis movimientos={movimientos} />}
