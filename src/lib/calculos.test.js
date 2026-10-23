@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro } from './calculos.js'
-import { formatearPesos, leerMonto } from './formato.js'
+import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro, resumenUltimosMeses, variacionPorcentual, gastosHastaElDia } from './calculos.js'
+import { formatearPesos, leerMonto, sumarMeses } from './formato.js'
 
 const movs = [
   { id: 1, tipo: 'ingreso', monto: 900000, categoria: 'sueldo', fecha: '2026-10-01', creado: 1 },
@@ -73,5 +73,35 @@ describe('proyectarAhorro', () => {
     const r = proyectarAhorro({ mensual: 100000, meses: 12, tasaAnual: 12 })
     expect(r.total).toBe(1268250)
     expect(r.intereses).toBe(68250)
+  })
+})
+
+describe('resumenUltimosMeses', () => {
+  it('entrega los meses en orden, incluidos los que no tienen movimientos', () => {
+    const r = resumenUltimosMeses(movs, '2026-10', 3)
+    expect(r.map((m) => m.mes)).toEqual(['2026-08', '2026-09', '2026-10'])
+    expect(r[0].gastos).toBe(0)
+    expect(r[1].gastos).toBe(50000)
+    expect(r[2].ingresos).toBe(900000)
+  })
+  it('cruza el cambio de año', () => {
+    expect(sumarMeses('2026-01', -1)).toBe('2025-12')
+  })
+})
+
+describe('variacionPorcentual', () => {
+  it('calcula cuánto subió o bajó', () => {
+    expect(variacionPorcentual(120, 100)).toBe(20)
+    expect(variacionPorcentual(50, 100)).toBe(-50)
+  })
+  it('devuelve null si antes no había nada', () => {
+    expect(variacionPorcentual(100, 0)).toBeNull()
+  })
+})
+
+describe('gastosHastaElDia', () => {
+  it('cuenta solo los gastos hasta ese día del mes', () => {
+    expect(gastosHastaElDia(movs, '2026-10', 20)).toBe(12000)
+    expect(gastosHastaElDia(movs, '2026-10', 31)).toBe(18820)
   })
 })

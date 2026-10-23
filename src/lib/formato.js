@@ -53,6 +53,20 @@ export function nombreDia(fechaISO, hoy = hoyISO()) {
   return capitalizar(formatoDia.format(aFecha(fechaISO)))
 }
 
+// Suma (o resta) meses: sumarMeses('2026-01', -1) -> '2025-12'
+export function sumarMeses(mesISO, cantidad) {
+  const [a, m] = mesISO.split('-').map(Number)
+  const fecha = new Date(a, m - 1 + cantidad, 1)
+  return hoyISO(fecha).slice(0, 7)
+}
+
+const formatoMesCorto = new Intl.DateTimeFormat('es-CL', { month: 'short' })
+
+// "oct" (para los ejes de los gráficos)
+export function nombreMesCorto(mesISO) {
+  return formatoMesCorto.format(aFecha(`${mesISO}-01`)).replace('.', '')
+}
+
 // "Octubre de 2026"
 export function nombreMes(mesISO) {
   return capitalizar(formatoMes.format(aFecha(`${mesISO}-01`)))
