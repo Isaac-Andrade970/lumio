@@ -1,5 +1,5 @@
 // Lógica pura (sin pantallas): fácil de probar y de reutilizar si algún día pasas a Expo.
-import { mesDe } from './formato.js'
+import { mesDe, sumarMeses } from './formato.js'
 
 // Totales de un mes: { ingresos, gastos, saldo }
 export function resumenDelMes(movimientos, mesISO) {
@@ -76,4 +76,31 @@ export function proyectarAhorro({ mensual, meses, tasaAnual = 0 }) {
   const total = Math.round(saldo)
   const aportado = mensual * meses
   return { total, aportado, intereses: total - aportado }
+}
+
+// Ingresos y gastos de los últimos "cantidad" meses, terminando en "mesFin" (el más antiguo primero).
+// [{ mes: '2026-05', ingresos, gastos }, ...]
+export function resumenUltimosMeses(movimientos, mesFin, cantidad = 6) {
+  const meses = []
+  for (let i = cantidad - 1; i >= 0; i--) {
+    const mes = sumarMeses(mesFin, -i)
+    meses.push({ mes, ...resumenDelMes(movimientos, mes) })
+  }
+  return meses
+}
+
+// Variación en % entre dos montos: 120 vs 100 -> 20. Si antes no había nada, devuelve null.
+export function variacionPorcentual(actual, anterior) {
+  if (!anterior) return null
+  return Math.round(((actual - anterior) / anterior) * 100)
+}
+
+// Gastos de un mes contando solo hasta cierto día (para comparar meses de forma justa)
+export function gastosHastaElDia(movimientos, mesISO, dia) {
+  let total = 0
+  for (const m of movimientos) {
+    if (m.tipo !== 'gasto' || mesDe(m.fecha) !== mesISO) continue
+    if (Number(m.fecha.slice(8, 10)) <= dia) total += m.monto
+  }
+  return total
 }

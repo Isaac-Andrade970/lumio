@@ -7,9 +7,10 @@ import Inicio from './components/Inicio.jsx'
 import Movimientos from './components/Movimientos.jsx'
 import NuevoMovimiento from './components/NuevoMovimiento.jsx'
 import Ahorro from './components/Ahorro.jsx'
+import Analisis from './components/Analisis.jsx'
 
 // Título que se muestra arriba según la pestaña activa
-const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro' }
+const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro', analisis: 'Análisis' }
 
 export default function App() {
   const [pestana, setPestana] = useState('inicio')
@@ -93,6 +94,7 @@ export default function App() {
             <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
           )}
           {pestana === 'ahorro' && <Ahorro />}
+          {pestana === 'analisis' && <Analisis movimientos={movimientos} />}
         </main>
 
       {/* Aviso temporal con opción de deshacer */}
@@ -134,7 +136,7 @@ export default function App() {
               </button>
             </div>
             <BotonPestana activa={pestana === 'ahorro'} onClick={() => setPestana('ahorro')} icono="🐷" texto="Ahorro" />
-            <div aria-hidden="true" /> {/* espacio libre: aquí irá la pestaña Análisis */}
+            <div aria-hidden="true" /> {<BotonPestana activa={pestana === 'analisis'} onClick={() => setPestana('analisis')} icono="📊" texto="Análisis" />}
           </div>
         </nav>
 
