@@ -11,6 +11,12 @@ db.version(1).stores({
   movimientos: '++id, fecha, tipo, categoria, origen',
 })
 
+// Versión 2: se agrega el índice "externoId" para no importar dos veces el mismo pago de Wallet.
+// Las versiones nunca se borran: Dexie actualiza solo la base de quien venga de la versión 1.
+db.version(2).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+})
+
 // Ejemplo de movimiento guardado:
 // {
 //   id: 1,
@@ -37,6 +43,19 @@ export function borrarMovimiento(id) {
 
 export function restaurarMovimiento(mov) {
   return db.movimientos.put(mov) // put = vuelve a guardarlo con el mismo id
+}
+
+// Guarda los pagos importados que todavía no existen. Devuelve los ids nuevos.
+export async function importarMovimientos(lista) {
+  const ids = lista.map((m) => m.externoId)
+  const existentes = await db.movimientos.where('externoId').anyOf(ids).toArray()
+  const yaImportados = new Set(existentes.map((m) => m.externoId))
+  const nuevos = lista.filter((m) => !yaImportados.has(m.externoId))
+  const ahora = Date.now()
+  return db.movimientos.bulkAdd(
+    nuevos.map((m, i) => ({ ...m, creado: ahora + i })),
+    { allKeys: true }, // para que devuelva los ids creados (sirve para deshacer)
+  )
 }
 
 // ¿Hay un movimiento igual (tipo, monto y categoría) creado hace menos de un minuto?

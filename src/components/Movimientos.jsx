@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { agruparPorDia } from '../lib/calculos.js'
 import { formatearPesos, nombreDia } from '../lib/formato.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
+import ConexionWallet from './ConexionWallet.jsx'
 
 // Lista completa, agrupada por día, con filtro por tipo y búsqueda
-export default function Movimientos({ movimientos, alEditar, alBorrar }) {
+export default function Movimientos({ movimientos, alEditar, alBorrar, wallet }) {
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
 
@@ -18,6 +19,9 @@ export default function Movimientos({ movimientos, alEditar, alBorrar }) {
 
   return (
     <div className="space-y-4">
+            {wallet && (
+        <ConexionWallet conectada={wallet.conectada} alConectar={wallet.alConectar} alDesconectar={wallet.alDesconectar} />
+      )}
       <input
         type="search"
         value={busqueda}
