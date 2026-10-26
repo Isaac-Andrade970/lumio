@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { gastosPorCategoria, resumenUltimosMeses, gastosHastaElDia,gastosPorTarjeta, variacionPorcentual } from '../lib/calculos.js'
 import { buscarCategoria } from '../lib/categorias.js'
+import SeccionCredito from './SeccionCredito.jsx'
 import { formatearPesos, hoyISO, mesDe, sumarMeses, nombreMes, nombreMesCorto } from '../lib/formato.js'
 
 // Un color por puesto: la categoría donde más gastas usa el primero, y así sucesivamente
@@ -125,6 +126,9 @@ export default function Analisis({ movimientos }) {
           </ul>
         </section>
       )}
+
+      {/* Tarjetas de crédito: cuánto pagar, cuándo, y cuánto interés costaría no pagar el total */}
+      <SeccionCredito movimientos={movimientos} />
 
       {/* Barras: ingresos vs gastos de los últimos 6 meses */}
       <section className="rounded-3xl bg-white p-5 dark:bg-stone-900">

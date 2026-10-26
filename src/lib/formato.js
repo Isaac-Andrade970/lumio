@@ -67,6 +67,13 @@ export function nombreMesCorto(mesISO) {
   return formatoMesCorto.format(aFecha(`${mesISO}-01`)).replace('.', '')
 }
 
+const formatoFechaCorta = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' })
+
+// "5 de noviembre"
+export function fechaCorta(fechaISO) {
+  return formatoFechaCorta.format(aFecha(fechaISO))
+}
+
 // "Octubre de 2026"
 export function nombreMes(mesISO) {
   return capitalizar(formatoMes.format(aFecha(`${mesISO}-01`)))

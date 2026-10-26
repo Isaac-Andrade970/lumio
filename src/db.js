@@ -17,6 +17,38 @@ db.version(2).stores({
   movimientos: '++id, fecha, tipo, categoria, origen, externoId',
 })
 
+// Versión 3: tabla nueva para la configuración de tus tarjetas de crédito.
+// 'nombre' es la clave: el mismo nombre de tarjeta que trae Wallet (por ejemplo "Crédito Banco C").
+db.version(3).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+  creditos: 'nombre',
+})
+
+// Versión 4: tabla para las cuotas que ya tienes comprometidas en tus tarjetas de crédito.
+db.version(4).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+  creditos: 'nombre',
+  cuotas: '++id, tarjeta',
+})
+
+// { tarjeta, descripcion, monto, hasta: 'AAAA-MM' }
+export function guardarCuota(cuota) {
+  return db.cuotas.put(cuota)
+}
+
+export function borrarCuota(id) {
+  return db.cuotas.delete(id)
+}
+
+// { nombre, diaCierre, diaPago, tasaMensual, comision, pagadoHasta }
+export function guardarCredito(config) {
+  return db.creditos.put(config) // put = crea o reemplaza
+}
+
+export function borrarCredito(nombre) {
+  return db.creditos.delete(nombre)
+}
+
 // Ejemplo de movimiento guardado:
 // {
 //   id: 1,
