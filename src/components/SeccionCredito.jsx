@@ -43,6 +43,15 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
   const r = resumenCredito(movimientos, config, undefined, cuotas) // undefined = usar la fecha de hoy
   const [voyAPagar, setVoyAPagar] = useState(0) // para el simulador de "¿y si no pago el total?"
 
+  const cuentas = useLiveQuery(() => db.cuentas.toArray(), [], [])
+  const [cuentaPago, setCuentaPago] = useState('') // desde qué cuenta pagaste el estado de cuenta
+
+  // Marca el estado de cuenta como pagado y, si elegiste cuenta, lo descuenta de ella
+  function marcarPagado() {
+    const pago = { periodo: r.periodoAnterior.hasta, monto: r.aPagar, cuenta: cuentaPago || null, momento: Date.now() }
+    guardarCredito({ ...config, pagadoHasta: r.periodoAnterior.hasta, pagos: [...(config.pagos ?? []), pago] })
+  }
+
   const pendiente = Math.max(r.aPagar - voyAPagar, 0)
   const interes = interesEstimado(pendiente, config.tasaMensual)
 
@@ -74,17 +83,38 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
             <p className="text-sm text-stone-700 dark:text-stone-300">
               Paga antes del <span className="font-semibold">{fechaCorta(r.fechaPago)}</span>
             </p>
-            {r.aPagar > 0 && (
-              <button
-                onClick={() => guardarCredito({ ...config, pagadoHasta: r.periodoAnterior.hasta })}
-                className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white"
-              >
+            {r.aPagar > 0 && cuentas.length === 0 && (
+              <button onClick={marcarPagado} className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white">
                 Ya lo pagué
               </button>
             )}
           </div>
         )}
       </div>
+
+      {/* Si tienes cuentas, al pagar eliges desde cuál: así se descuenta de su saldo */}
+      {!r.pagado && r.aPagar > 0 && cuentas.length > 0 && (
+        <div className="mt-2 flex items-center gap-2">
+          <select
+            value={cuentaPago}
+            onChange={(e) => setCuentaPago(e.target.value)}
+            aria-label="Cuenta desde la que pagaste"
+            className="min-w-0 flex-1 rounded-lg bg-stone-100 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+          >
+            <option value="">Pagué desde…</option>
+            {cuentas.map((c) => (
+              <option key={c.nombre} value={c.nombre}>{c.nombre}</option>
+            ))}
+          </select>
+          <button
+            onClick={marcarPagado}
+            disabled={!cuentaPago}
+            className="shrink-0 rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+          >
+            Ya lo pagué
+          </button>
+        </div>
+      )}
 
       {/* 2) Período en curso */}
       <div className="mt-3 flex items-baseline justify-between px-1">

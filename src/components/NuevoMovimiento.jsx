@@ -23,14 +23,15 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
 
   // Tus tarjetas de crédito configuradas en Análisis (aparecen aunque todavía no las hayas usado)
   const creditos = useLiveQuery(() => db.creditos.toArray(), [], [])
+  const cuentas = useLiveQuery(() => db.cuentas.toArray(), [], [])
 
-  // Opciones de "Pagado con": tarjetas ya usadas + tarjetas de crédito + Efectivo (+ la del gasto que editas)
-  const mediosDePago = unirTarjetas(
-    tarjetasUsadas(movimientos),
-    creditos.map((c) => c.nombre),
-    ['Efectivo'],
-    inicial?.medioPago ? [inicial.medioPago] : [],
-  )
+  // Gasto: "Pagado con" = tarjetas ya usadas + tarjetas de crédito + tus cuentas + Efectivo
+  // Ingreso: "Recibido en" = tus cuentas (débito, efectivo); nunca una tarjeta de crédito
+  const editado = inicial?.medioPago ? [inicial.medioPago] : []
+  const mediosDePago =
+    tipo === 'gasto'
+      ? unirTarjetas(tarjetasUsadas(movimientos), creditos.map((c) => c.nombre), cuentas.map((c) => c.nombre), ['Efectivo'], editado)
+      : unirTarjetas(cuentas.map((c) => c.nombre), editado)
 
   // Si lo que elegiste es una tarjeta de crédito configurada, se puede pagar en cuotas
   const credito = creditos.find((c) => mismaTarjeta(c.nombre, medioPago))
@@ -51,6 +52,9 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   function cambiarTipo(nuevo) {
     setTipo(nuevo)
     setCategoria(null) // las categorías de gasto e ingreso son distintas
+    setMedioPago('') // un ingreso no llega a una tarjeta de crédito, así que se vuelve a elegir
+    setEscribiendoTarjeta(false)
+    setCuotas(1)
   }
 
   // Teclado numérico propio: más grande y cómodo que el del sistema
@@ -70,7 +74,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       categoria: categoria ?? categoriaOtros(tipo),
       fecha,
       nota: nota.trim(),
-      medioPago: tipo === 'gasto' ? medioPago.trim() : '', // los ingresos no llevan tarjeta
+      medioPago: medioPago.trim(), // gasto: con qué pagaste · ingreso: en qué cuenta llegó
       cuotas: enCuotas ? cuotas : 1,
       valorCuota: enCuotas ? cuotaCalculada : 0,
       origen: inicial?.origen ?? 'manual',
@@ -142,40 +146,40 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
           ))}
         </div>
 
-        {/* Pagado con (solo para gastos). Tocar la opción elegida otra vez la quita. */}
-        {tipo === 'gasto' && (
-          <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
-            <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">Pagado con</span>
-            {mediosDePago.map((m) => (
-              <button
-                key={m}
-                onClick={() => {
-                  setMedioPago(mismaTarjeta(medioPago, m) ? '' : m)
-                  setEscribiendoTarjeta(false)
-                }}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
-                  mismaTarjeta(medioPago, m) && !escribiendoTarjeta
-                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
-                    : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+        {/* Pagado con / Recibido en. Tocar la opción elegida otra vez la quita. */}
+        <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+          <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
+            {tipo === 'gasto' ? 'Pagado con' : 'Recibido en'}
+          </span>
+          {mediosDePago.map((m) => (
             <button
+              key={m}
               onClick={() => {
-                setEscribiendoTarjeta(true)
-                setMedioPago('')
+                setMedioPago(mismaTarjeta(medioPago, m) ? '' : m)
+                setEscribiendoTarjeta(false)
               }}
-              className="shrink-0 rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 dark:border-stone-600 dark:text-stone-400"
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+                mismaTarjeta(medioPago, m) && !escribiendoTarjeta
+                  ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                  : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+              }`}
             >
-              + Otra
+              {m}
             </button>
-          </div>
-        )}
+          ))}
+          <button
+            onClick={() => {
+              setEscribiendoTarjeta(true)
+              setMedioPago('')
+            }}
+            className="shrink-0 rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 dark:border-stone-600 dark:text-stone-400"
+          >
+            + Otra
+          </button>
+        </div>
 
         {/* Escribir una tarjeta que no está en la lista */}
-        {tipo === 'gasto' && escribiendoTarjeta && (
+        {escribiendoTarjeta && (
           <input
             autoFocus
             value={medioPago}

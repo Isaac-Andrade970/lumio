@@ -1,12 +1,13 @@
 import { resumenDelMes, gastosPorCategoria } from '../lib/calculos.js'
 import { buscarCategoria } from '../lib/categorias.js'
-import { formatearPesos, hoyISO, mesDe, nombreMes } from '../lib/formato.js'
+import { formatearPesos, hoyISO, mesDe } from '../lib/formato.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
+import CuentasInicio from './CuentasInicio.jsx'
 
-// Pantalla de inicio: saldo del mes, top categorías y últimos movimientos
+// Pantalla de inicio: cuentas, top categorías y últimos movimientos
 export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar }) {
   const mes = mesDe(hoyISO())
-  const { ingresos, gastos, saldo } = resumenDelMes(movimientos, mes)
+  const { gastos } = resumenDelMes(movimientos, mes)
   const top = gastosPorCategoria(movimientos, mes).slice(0, 3)
   const ultimos = [...movimientos]
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.creado ?? 0) - (a.creado ?? 0))
@@ -27,22 +28,8 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
 
   return (
     <div className="space-y-4">
-      {/* Saldo del mes */}
-      <section className="rounded-3xl bg-teal-700 p-5 text-white">
-        <p className="text-sm text-teal-100">{nombreMes(mes)}</p>
-        <p className="mt-1 text-sm text-teal-100">Saldo del mes</p>
-        <p className="text-4xl font-semibold tracking-tight tabular-nums">{formatearPesos(saldo)}</p>
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-2xl bg-white/10 p-3">
-            <p className="text-teal-100">Ingresos</p>
-            <p className="text-lg font-semibold tabular-nums">{formatearPesos(ingresos)}</p>
-          </div>
-          <div className="rounded-2xl bg-white/10 p-3">
-            <p className="text-teal-100">Gastos</p>
-            <p className="text-lg font-semibold tabular-nums">{formatearPesos(gastos)}</p>
-          </div>
-        </div>
-      </section>
+      {/* Disponible por cuenta, deuda de crédito y resumen del mes */}
+      <CuentasInicio movimientos={movimientos} />
 
       {/* Dónde se fue la plata */}
       {top.length > 0 && (

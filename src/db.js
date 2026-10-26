@@ -31,6 +31,23 @@ db.version(4).stores({
   cuotas: '++id, tarjeta',
 })
 
+// Versión 5: tus cuentas (débito, efectivo...) con el saldo que tenían cuando lo anotaste.
+db.version(5).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+  creditos: 'nombre',
+  cuotas: '++id, tarjeta',
+  cuentas: 'nombre',
+})
+
+// { nombre, saldoInicial, fechaSaldo, momentoSaldo }
+export function guardarCuenta(cuenta) {
+  return db.cuentas.put(cuenta)
+}
+
+export function borrarCuenta(nombre) {
+  return db.cuentas.delete(nombre)
+}
+
 // { tarjeta, descripcion, monto, hasta: 'AAAA-MM' }
 export function guardarCuota(cuota) {
   return db.cuotas.put(cuota)
