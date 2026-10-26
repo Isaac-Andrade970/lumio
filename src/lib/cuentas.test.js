@@ -41,3 +41,20 @@ describe('resumenCuentas', () => {
     expect(r.deudas).toEqual([{ nombre: 'Crédito Banco C', monto: 9990, fecha: '2026-12-05', estimado: true }])
   })
 })
+
+describe('transferencias entre cuentas', () => {
+  const a = { nombre: 'Débito Banco A', saldoInicial: 100000, fechaSaldo: '2026-10-26', momentoSaldo: 1 }
+  const efectivo = { nombre: 'Efectivo', saldoInicial: 0, fechaSaldo: '2026-10-26', momentoSaldo: 1 }
+  const retiro = [
+    { tipo: 'transferencia', monto: 20000, fecha: '2026-10-27', medioPago: 'Débito Banco A', destino: 'Efectivo', creado: 2 },
+    { tipo: 'gasto', monto: 3500, fecha: '2026-10-27', medioPago: 'Efectivo', creado: 3 },
+  ]
+  it('restan del origen y suman al destino', () => {
+    expect(saldoDeCuenta(a, retiro)).toBe(80000)
+    expect(saldoDeCuenta(efectivo, retiro)).toBe(20000 - 3500)
+  })
+  it('el disponible total no cambia por mover plata entre tus cuentas', () => {
+    const r = resumenCuentas([a, efectivo], retiro.slice(0, 1))
+    expect(r.disponible).toBe(100000)
+  })
+})

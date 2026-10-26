@@ -157,3 +157,17 @@ describe('tarjetas con nombres escritos distinto', () => {
     ])
   })
 })
+
+describe('transferencias', () => {
+  const conTransferencia = [
+    { tipo: 'gasto', monto: 5000, fecha: '2026-10-21', medioPago: 'Débito Banco A' },
+    { tipo: 'ingreso', monto: 900000, fecha: '2026-10-01', medioPago: 'Débito Banco A' },
+    { tipo: 'transferencia', monto: 50000, fecha: '2026-10-21', medioPago: 'Débito Banco A', destino: 'Ahorro', categoria: 'transferencia' },
+  ]
+  it('no cuentan como gasto ni ingreso del mes', () => {
+    expect(resumenDelMes(conTransferencia, '2026-10')).toEqual({ ingresos: 900000, gastos: 5000, saldo: 895000 })
+  })
+  it('no cambian el total del día', () => {
+    expect(agruparPorDia(conTransferencia).find((g) => g.fecha === '2026-10-21').totalDia).toBe(-5000)
+  })
+})

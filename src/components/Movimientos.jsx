@@ -3,10 +3,9 @@ import { agruparPorDia, tarjetaDe, tarjetasUsadas, SIN_TARJETA } from '../lib/ca
 import { formatearPesos, nombreDia } from '../lib/formato.js'
 import { mismaTarjeta } from '../lib/credito.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
-import ConexionWallet from './ConexionWallet.jsx'
 
 // Lista completa, agrupada por día, con filtro por tipo y búsqueda
-export default function Movimientos({ movimientos, alEditar, alBorrar, wallet }) {
+export default function Movimientos({ movimientos, alEditar, alBorrar }) {
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [tarjeta, setTarjeta] = useState('todas')
@@ -19,7 +18,7 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
   const filtrados = movimientos.filter(
     (m) =>
       (filtro === 'todos' || m.tipo === filtro) &&
-      (tarjeta === 'todas' || mismaTarjeta(tarjetaDe(m), tarjeta)) &&
+      (tarjeta === 'todas' || mismaTarjeta(tarjetaDe(m), tarjeta) || mismaTarjeta(m.destino, tarjeta)) &&
       (!texto || m.nota?.toLowerCase().includes(texto) || m.categoria.includes(texto)),
   )
   // Total de gastos de lo que se está mostrando (útil al filtrar por tarjeta)
@@ -28,10 +27,6 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
 
   return (
     <div className="space-y-4">
-      {wallet && (
-        <ConexionWallet conectada={wallet.conectada} alConectar={wallet.alConectar} alDesconectar={wallet.alDesconectar} />
-      )}
-
       <input
         type="search"
         value={busqueda}
@@ -40,16 +35,17 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
         className="w-full rounded-xl bg-white px-4 py-2.5 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-900 dark:text-white"
       />
 
-      <div className="flex gap-2">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
         {[
           ['todos', 'Todos'],
           ['gasto', 'Gastos'],
           ['ingreso', 'Ingresos'],
+          ['transferencia', 'Transferencias'],
         ].map(([valor, etiqueta]) => (
           <button
             key={valor}
             onClick={() => setFiltro(valor)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${
               filtro === valor
                 ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
                 : 'bg-white text-stone-600 dark:bg-stone-900 dark:text-stone-300'
@@ -93,10 +89,13 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
         <section key={g.fecha} className="rounded-3xl bg-white px-5 pt-3 pb-1 dark:bg-stone-900">
           <div className="flex justify-between text-sm">
             <h2 className="font-medium text-stone-500 dark:text-stone-400">{nombreDia(g.fecha)}</h2>
-            <span className="tabular-nums text-stone-400">
-              {g.totalDia >= 0 ? '+' : '−'}
-              {formatearPesos(Math.abs(g.totalDia))}
-            </span>
+            {/* Total del día (no se muestra si ese día solo hubo transferencias entre tus cuentas) */}
+            {g.movimientos.some((m) => m.tipo !== 'transferencia') && (
+              <span className="tabular-nums text-stone-400">
+                {g.totalDia >= 0 ? '+' : '−'}
+                {formatearPesos(Math.abs(g.totalDia))}
+              </span>
+            )}
           </div>
           <ul className="divide-y divide-stone-100 dark:divide-stone-800">
             {g.movimientos.map((m) => (

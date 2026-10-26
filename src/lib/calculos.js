@@ -9,7 +9,8 @@ export function resumenDelMes(movimientos, mesISO) {
   for (const m of movimientos) {
     if (mesDe(m.fecha) !== mesISO) continue
     if (m.tipo === 'ingreso') ingresos += m.monto
-    else gastos += m.monto
+    else if (m.tipo === 'gasto') gastos += m.monto
+    // las transferencias entre tus cuentas no son ni ingreso ni gasto
   }
   return { ingresos, gastos, saldo: ingresos - gastos }
 }
@@ -39,7 +40,8 @@ export function agruparPorDia(movimientos) {
       grupos.push(grupo)
     }
     grupo.movimientos.push(m)
-    grupo.totalDia += m.tipo === 'ingreso' ? m.monto : -m.monto
+    if (m.tipo === 'ingreso') grupo.totalDia += m.monto
+    else if (m.tipo === 'gasto') grupo.totalDia -= m.monto
   }
   return grupos
 }

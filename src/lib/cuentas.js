@@ -10,13 +10,18 @@ function esPosterior(mov, cuenta) {
   return mov.fecha === cuenta.fechaSaldo && (mov.creado ?? 0) > cuenta.momentoSaldo
 }
 
-// Saldo actual de una cuenta
+// Saldo actual de una cuenta.
+// Transferencia: { tipo: 'transferencia', monto, medioPago: cuenta de origen, destino: cuenta de destino }
 // creditos: configuraciones de tarjetas de crédito, con sus pagos [{ monto, cuenta, momento }]
 export function saldoDeCuenta(cuenta, movimientos, creditos = []) {
   let saldo = cuenta.saldoInicial
   for (const m of movimientos) {
-    if (!mismaTarjeta(m.medioPago, cuenta.nombre) || !esPosterior(m, cuenta)) continue
-    saldo += m.tipo === 'ingreso' ? m.monto : -m.monto
+    if (!esPosterior(m, cuenta)) continue
+    const sale = mismaTarjeta(m.medioPago, cuenta.nombre) // gasto o transferencia DESDE esta cuenta
+    const entra = m.tipo === 'transferencia' && mismaTarjeta(m.destino, cuenta.nombre) // transferencia HACIA esta cuenta
+    if (m.tipo === 'ingreso' && sale) saldo += m.monto
+    else if (m.tipo !== 'ingreso' && sale) saldo -= m.monto
+    if (entra) saldo += m.monto
   }
   // Pagos de tarjeta de crédito hechos desde esta cuenta
   for (const credito of creditos) {

@@ -1,6 +1,6 @@
 {
   "name": "lumio",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "description": "App personal de finanzas (PWA) - gastos, ingresos y proyecciones de ahorro",
   "scripts": {
     "dev": "vite --host",

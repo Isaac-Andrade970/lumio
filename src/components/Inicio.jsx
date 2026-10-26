@@ -3,9 +3,14 @@ import { buscarCategoria } from '../lib/categorias.js'
 import { formatearPesos, hoyISO, mesDe } from '../lib/formato.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
 import CuentasInicio from './CuentasInicio.jsx'
+import { leerUltimoRespaldo, diasDesdeRespaldo } from '../lib/respaldo.js'
 
 // Pantalla de inicio: cuentas, top categorías y últimos movimientos
-export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar }) {
+export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar, alAjustes }) {
+  // Recordatorio: si tienes datos y pasaron más de 7 días (o nunca) desde el último respaldo
+  const dias = diasDesdeRespaldo(leerUltimoRespaldo())
+  const recordarRespaldo = movimientos.length >= 5 && (dias === null || dias > 7)
+
   const mes = mesDe(hoyISO())
   const { gastos } = resumenDelMes(movimientos, mes)
   const top = gastosPorCategoria(movimientos, mes).slice(0, 3)
@@ -16,7 +21,17 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
   return (
     <div className="space-y-4">
       {/* Disponible por cuenta, deuda de crédito y resumen del mes (se ve aunque aún no haya movimientos) */}
-      <CuentasInicio movimientos={movimientos} />
+      <CuentasInicio movimientos={movimientos} alAjustes={alAjustes} />
+
+      {recordarRespaldo && (
+        <button
+          onClick={alAjustes}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <span>{dias === null ? 'Aún no respaldas tus datos.' : `Tu último respaldo fue hace ${dias} días.`}</span>
+          <span className="shrink-0 font-semibold">Respaldar →</span>
+        </button>
+      )}
 
       {movimientos.length === 0 && (
         <div className="mt-8 text-center">

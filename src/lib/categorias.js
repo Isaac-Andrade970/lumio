@@ -20,7 +20,10 @@ export const CATEGORIAS = {
   ],
 }
 
-const TODAS = [...CATEGORIAS.gasto, ...CATEGORIAS.ingreso]
+// Las transferencias entre tus cuentas tienen su propia "categoría" fija
+export const CATEGORIA_TRANSFERENCIA = { id: 'transferencia', nombre: 'Transferencia', emoji: '⇄' }
+
+const TODAS = [...CATEGORIAS.gasto, ...CATEGORIAS.ingreso, CATEGORIA_TRANSFERENCIA]
 
 export function buscarCategoria(id) {
   return TODAS.find((c) => c.id === id) ?? { id, nombre: id, emoji: '❔' }

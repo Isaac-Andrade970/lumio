@@ -8,7 +8,7 @@ import { db, agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from 
 
 const OPCIONES_CUOTAS = [1, 2, 3, 4, 6, 10, 12, 18, 24, 36]
 
-// Hoja que sube desde abajo para anotar un gasto o ingreso.
+// Hoja que sube desde abajo para anotar un gasto, un ingreso o una transferencia entre tus cuentas.
 // "inicial" trae datos pre-rellenados (por ejemplo, desde un Atajo de Apple Pay).
 export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuardar }) {
   const [tipo, setTipo] = useState(inicial?.tipo ?? 'gasto')
@@ -20,6 +20,9 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   const [escribiendoTarjeta, setEscribiendoTarjeta] = useState(false)
   const [cuotas, setCuotas] = useState(inicial?.cuotas ?? 1)
   const [valorCuota, setValorCuota] = useState(inicial?.valorCuota ?? 0) // 0 = calcular monto ÷ cuotas
+  const [destino, setDestino] = useState(inicial?.destino ?? '') // solo transferencias: cuenta que recibe
+  const [escribiendoDestino, setEscribiendoDestino] = useState(false)
+  const esTransferencia = tipo === 'transferencia'
 
   // Tus tarjetas de crédito configuradas en Análisis (aparecen aunque todavía no las hayas usado)
   const creditos = useLiveQuery(() => db.creditos.toArray(), [], [])
@@ -27,11 +30,16 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
 
   // Gasto: "Pagado con" = tarjetas ya usadas + tarjetas de crédito + tus cuentas + Efectivo
   // Ingreso: "Recibido en" = tus cuentas (débito, efectivo); nunca una tarjeta de crédito
+  // Transferencia: "Desde" y "Hacia" = tus cuentas + Efectivo
   const editado = inicial?.medioPago ? [inicial.medioPago] : []
+  const cuentasPropias = unirTarjetas(cuentas.map((c) => c.nombre), ['Efectivo'], editado, inicial?.destino ? [inicial.destino] : [])
   const mediosDePago =
     tipo === 'gasto'
       ? unirTarjetas(tarjetasUsadas(movimientos), creditos.map((c) => c.nombre), cuentas.map((c) => c.nombre), ['Efectivo'], editado)
-      : unirTarjetas(cuentas.map((c) => c.nombre), editado)
+      : esTransferencia
+        ? cuentasPropias
+        : unirTarjetas(cuentas.map((c) => c.nombre), editado)
+  const destinos = cuentasPropias.filter((c) => !mismaTarjeta(c, medioPago)) // no se transfiere a la misma cuenta
 
   // Si lo que elegiste es una tarjeta de crédito configurada, se puede pagar en cuotas
   const credito = creditos.find((c) => mismaTarjeta(c.nombre, medioPago))
@@ -45,7 +53,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   const [avisoDuplicado, setAvisoDuplicado] = useState(false)
 
   // Las más usadas primero; si editas, la categoría del movimiento va al principio para que se vea
-  const categorias = ordenarPorUso(CATEGORIAS[tipo], movimientos).sort(
+  const categorias = ordenarPorUso(CATEGORIAS[tipo] ?? [], movimientos).sort(
     (a, b) => (b.id === inicial?.categoria) - (a.id === inicial?.categoria),
   )
 
@@ -55,6 +63,8 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
     setMedioPago('') // un ingreso no llega a una tarjeta de crédito, así que se vuelve a elegir
     setEscribiendoTarjeta(false)
     setCuotas(1)
+    setDestino('')
+    setEscribiendoDestino(false)
   }
 
   // Teclado numérico propio: más grande y cómodo que el del sistema
@@ -68,13 +78,18 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
 
   async function guardar(forzar = false) {
     if (monto <= 0) return setError('Escribe un monto mayor a $0')
+    if (esTransferencia) {
+      if (!medioPago.trim() || !destino.trim()) return setError('Elige desde qué cuenta y hacia cuál')
+      if (mismaTarjeta(medioPago, destino)) return setError('Elige dos cuentas distintas')
+    }
     const mov = {
       tipo,
       monto,
-      categoria: categoria ?? categoriaOtros(tipo),
+      categoria: esTransferencia ? 'transferencia' : (categoria ?? categoriaOtros(tipo)),
+      destino: esTransferencia ? destino.trim() : '',
       fecha,
       nota: nota.trim(),
-      medioPago: medioPago.trim(), // gasto: con qué pagaste · ingreso: en qué cuenta llegó
+      medioPago: medioPago.trim(), // gasto: con qué pagaste · ingreso: dónde llegó · transferencia: desde dónde
       cuotas: enCuotas ? cuotas : 1,
       valorCuota: enCuotas ? cuotaCalculada : 0,
       origen: inicial?.origen ?? 'manual',
@@ -88,7 +103,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
     alGuardar({ ...mov, id })
   }
 
-  const colorTipo = tipo === 'gasto' ? 'text-stone-900 dark:text-stone-50' : 'text-teal-700 dark:text-teal-300'
+  const colorTipo = tipo === 'ingreso' ? 'text-teal-700 dark:text-teal-300' : 'text-stone-900 dark:text-stone-50'
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col justify-end">
@@ -102,19 +117,23 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-stone-300 dark:bg-stone-700" />
 
-        {/* Gasto / Ingreso */}
-        <div className="mb-3 grid grid-cols-2 rounded-xl bg-stone-100 p-1 text-sm font-medium dark:bg-stone-800">
-          {['gasto', 'ingreso'].map((t) => (
+        {/* Gasto / Ingreso / Transferencia */}
+        <div className="mb-3 grid grid-cols-3 rounded-xl bg-stone-100 p-1 text-sm font-medium dark:bg-stone-800">
+          {[
+            ['gasto', 'Gasto'],
+            ['ingreso', 'Ingreso'],
+            ['transferencia', 'Transferencia'],
+          ].map(([t, etiqueta]) => (
             <button
               key={t}
               onClick={() => cambiarTipo(t)}
-              className={`rounded-lg py-2 capitalize transition-colors ${
+              className={`rounded-lg py-2 transition-colors ${
                 tipo === t
                   ? 'bg-white text-stone-900 shadow-sm dark:bg-stone-700 dark:text-white'
                   : 'text-stone-500 dark:text-stone-400'
               }`}
             >
-              {t}
+              {etiqueta}
             </button>
           ))}
         </div>
@@ -128,28 +147,39 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
           <p className="h-5 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
         </div>
 
+        {/* Transferencias: explicación corta en vez de categorías */}
+        {esTransferencia && (
+          <p className="mb-3 text-center text-xs text-stone-500 dark:text-stone-400">
+            Mueve plata entre tus cuentas (ej. retiro en cajero = débito → Efectivo). No cuenta como gasto.
+            <br />
+            Si le pagas a otra persona, usa <span className="font-medium">Gasto</span>.
+          </p>
+        )}
+
         {/* Categorías (las más usadas primero) */}
-        <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          {categorias.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCategoria(c.id)}
-              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-xs transition-colors ${
-                categoria === c.id
-                  ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
-                  : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
-              }`}
-            >
-              <span className="text-xl" aria-hidden="true">{c.emoji}</span>
-              {c.nombre}
-            </button>
-          ))}
-        </div>
+        {!esTransferencia && (
+          <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {categorias.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setCategoria(c.id)}
+                className={`flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-xs transition-colors ${
+                  categoria === c.id
+                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                    : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+                }`}
+              >
+                <span className="text-xl" aria-hidden="true">{c.emoji}</span>
+                {c.nombre}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Pagado con / Recibido en. Tocar la opción elegida otra vez la quita. */}
         <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
           <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
-            {tipo === 'gasto' ? 'Pagado con' : 'Recibido en'}
+            {tipo === 'gasto' ? 'Pagado con' : tipo === 'ingreso' ? 'Recibido en' : 'Desde'}
           </span>
           {mediosDePago.map((m) => (
             <button
@@ -157,6 +187,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
               onClick={() => {
                 setMedioPago(mismaTarjeta(medioPago, m) ? '' : m)
                 setEscribiendoTarjeta(false)
+                setError('')
               }}
               className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
                 mismaTarjeta(medioPago, m) && !escribiendoTarjeta
@@ -185,6 +216,49 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             value={medioPago}
             onChange={(e) => setMedioPago(e.target.value)}
             placeholder="Nombre de la tarjeta (como en Wallet)"
+            maxLength={40}
+            className="mb-3 w-full rounded-xl bg-stone-100 px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+          />
+        )}
+
+        {/* Transferencia: cuenta que recibe la plata */}
+        {esTransferencia && (
+          <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+            <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">Hacia</span>
+            {destinos.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setDestino(mismaTarjeta(destino, c) ? '' : c)
+                  setEscribiendoDestino(false)
+                  setError('')
+                }}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+                  mismaTarjeta(destino, c) && !escribiendoDestino
+                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                    : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setEscribiendoDestino(true)
+                setDestino('')
+              }}
+              className="shrink-0 rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 dark:border-stone-600 dark:text-stone-400"
+            >
+              + Otra
+            </button>
+          </div>
+        )}
+        {esTransferencia && escribiendoDestino && (
+          <input
+            autoFocus
+            value={destino}
+            onChange={(e) => setDestino(e.target.value)}
+            placeholder="Nombre de la cuenta (ej. Ahorro)"
             maxLength={40}
             className="mb-3 w-full rounded-xl bg-stone-100 px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
           />

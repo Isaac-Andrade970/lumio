@@ -10,9 +10,12 @@ import Movimientos from './components/Movimientos.jsx'
 import NuevoMovimiento from './components/NuevoMovimiento.jsx'
 import Ahorro from './components/Ahorro.jsx'
 import Analisis from './components/Analisis.jsx'
+import Ajustes from './components/Ajustes.jsx'
+import Novedades from './components/Novedades.jsx'
+import { VERSION, versionVista, marcarVista } from './version.js'
 
 // Título que se muestra arriba según la pestaña activa
-const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro', analisis: 'Análisis' }
+const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro', analisis: 'Análisis', ajustes: 'Ajustes' }
 
 export default function App() {
   const [pestana, setPestana] = useState('inicio')
@@ -22,9 +25,22 @@ export default function App() {
   const temporizador = useRef(null)
   const [claveWallet, setClaveWallet] = useState(leerClave) // '' = no conectada
   const sincronizando = useRef(false) // evita revisar la bandeja dos veces al mismo tiempo
+  const [verNovedades, setVerNovedades] = useState(false)
 
   // useLiveQuery: la pantalla se actualiza sola cada vez que cambia la base de datos
   const movimientos = useLiveQuery(() => db.movimientos.toArray(), [], null)
+
+  // Novedades: se muestran una vez después de actualizar (a quien recién empieza no se le muestran)
+  useEffect(() => {
+    if (movimientos === null || versionVista() === VERSION) return
+    if (movimientos.length > 0) setVerNovedades(true)
+    else marcarVista()
+  }, [movimientos])
+
+  function cerrarNovedades() {
+    marcarVista()
+    setVerNovedades(false)
+  }
 
   // Si la app se abre con un link "#nuevo?monto=...", abre la hoja pre-rellenada
   useEffect(() => {
@@ -126,10 +142,19 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-md">
-      <header className="safe-top px-4 pb-3">
+      <header className="safe-top flex items-center justify-between px-4 pb-3">
         <h1 className="text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
           {TITULOS[pestana]}
         </h1>
+        {pestana !== 'ajustes' && (
+          <button
+            onClick={() => setPestana('ajustes')}
+            aria-label="Ajustes"
+            className="grid size-10 place-items-center rounded-full text-xl text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800"
+          >
+            ⚙️
+          </button>
+        )}
       </header>
 
       <main className="px-4 pb-32">
@@ -139,6 +164,7 @@ export default function App() {
             alVerTodo={() => setPestana('movimientos')}
             alCargarEjemplo={cargarEjemplo}
             alEditar={abrirEdicion}
+            alAjustes={() => setPestana('ajustes')}
           />
         )}
         {pestana === 'movimientos' && (
@@ -146,6 +172,13 @@ export default function App() {
             movimientos={movimientos}
             alEditar={abrirEdicion}
             alBorrar={alBorrar}
+          />
+        )}
+        {pestana === 'ahorro' && <Ahorro />}
+        {pestana === 'analisis' && <Analisis movimientos={movimientos} />}
+        {pestana === 'ajustes' && (
+          <Ajustes
+            movimientos={movimientos}
             wallet={
               bandeja && {
                 conectada: Boolean(claveWallet),
@@ -153,10 +186,10 @@ export default function App() {
                 alDesconectar: desconectarWallet,
               }
             }
+            alAviso={(texto) => mostrarAviso(texto, null)}
+            alVerNovedades={() => setVerNovedades(true)}
           />
         )}
-        {pestana === 'ahorro' && <Ahorro />}
-        {pestana === 'analisis' && <Analisis movimientos={movimientos} />}
       </main>
 
       {/* Aviso temporal con opción de deshacer */}
@@ -166,6 +199,7 @@ export default function App() {
           className="fixed inset-x-4 bottom-28 z-10 mx-auto flex max-w-sm items-center justify-between rounded-2xl bg-stone-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
         >
           <span>{aviso.texto}</span>
+          {aviso.deshacer && (
           <button
             onClick={() => {
               aviso.deshacer()
@@ -175,6 +209,7 @@ export default function App() {
           >
             Deshacer
           </button>
+          )}
         </div>
       )}
 
@@ -201,6 +236,8 @@ export default function App() {
           <BotonPestana activa={pestana === 'analisis'} onClick={() => setPestana('analisis')} icono="📊" texto="Análisis" />
         </div>
       </nav>
+
+      {verNovedades && <Novedades alCerrar={cerrarNovedades} />}
 
       {hojaAbierta && (
         <NuevoMovimiento

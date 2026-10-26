@@ -39,6 +39,44 @@ db.version(5).stores({
   cuentas: 'nombre',
 })
 
+// Versión 6: una copia de seguridad automática que se guarda justo antes de restaurar un respaldo
+db.version(6).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+  creditos: 'nombre',
+  cuotas: '++id, tarjeta',
+  cuentas: 'nombre',
+  copias: 'id',
+})
+
+const TABLAS_RESPALDO = ['movimientos', 'cuentas', 'creditos', 'cuotas']
+
+// Todos tus datos, para el respaldo
+export async function exportarDatos() {
+  const datos = {}
+  for (const tabla of TABLAS_RESPALDO) datos[tabla] = await db[tabla].toArray()
+  return datos
+}
+
+// Borra todo y carga los datos del respaldo. "transaction" = todo o nada: si algo falla, no queda a medias.
+export async function reemplazarDatos(datos) {
+  const tablas = TABLAS_RESPALDO.map((t) => db[t])
+  await db.transaction('rw', tablas, async () => {
+    for (const tabla of TABLAS_RESPALDO) {
+      await db[tabla].clear()
+      await db[tabla].bulkAdd(datos[tabla] ?? [])
+    }
+  })
+}
+
+// Copia de lo que tenías antes de restaurar (por si eliges el archivo equivocado)
+export async function guardarCopiaPrevia() {
+  await db.copias.put({ id: 'antes-de-restaurar', creado: Date.now(), datos: await exportarDatos() })
+}
+
+export function leerCopiaPrevia() {
+  return db.copias.get('antes-de-restaurar')
+}
+
 // { nombre, saldoInicial, fechaSaldo, momentoSaldo }
 export function guardarCuenta(cuenta) {
   return db.cuentas.put(cuenta)
