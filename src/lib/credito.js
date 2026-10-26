@@ -130,27 +130,52 @@ function sumarCuotas(lista) {
   return lista.reduce((suma, c) => suma + c.monto, 0)
 }
 
+// Cuánto se ha pagado a un estado de cuenta (identificado por su fecha de cierre)
+export function pagadoAlEstado(config, cierre) {
+  return (config.pagos ?? []).filter((p) => p.periodo === cierre).reduce((suma, p) => suma + p.monto, 0)
+}
+
+// Un estado de cuenta completo, identificado por su fecha de cierre.
+// Si del estado anterior registraste un pago MENOR al total, lo que faltó pasa a este con interés.
+// (Si no registraste ningún pago del anterior, se asume que lo pagaste completo y no se arrastra nada.)
+export function estadoDeCuenta(movimientos, config, cuotas, cierre, profundidad = 0) {
+  const { actual: periodo, anterior: previo } = periodosCredito(cierre, config.diaCierre)
+  const fechaPago = fechaDePago(cierre, config.diaPago)
+  const compras = gastadoConTarjeta(movimientos, config.nombre, periodo)
+  const cuotasDelMes = sumarCuotas(cuotasVigentes(cuotas, config.nombre, fechaPago.slice(0, 7)))
+  const comision = config.comision || 0
+
+  let arrastre = 0
+  let interes = 0
+  const huboPagoAlAnterior = (config.pagos ?? []).some((p) => p.periodo === previo.hasta)
+  if (huboPagoAlAnterior && profundidad < 24) {
+    // Función recursiva: el estado anterior también puede traer algo del suyo
+    arrastre = estadoDeCuenta(movimientos, config, cuotas, previo.hasta, profundidad + 1).pendiente
+    interes = interesEstimado(arrastre, config.tasaMensual)
+  }
+
+  const total = compras + cuotasDelMes + comision + arrastre + interes
+  const pagadoMonto = pagadoAlEstado(config, cierre)
+  // Compatibilidad: antes "Ya lo pagué" solo guardaba la fecha, sin monto -> se toma como pago completo
+  const marcadoSinMonto = config.pagadoHasta === cierre && pagadoMonto === 0
+  const pendiente = marcadoSinMonto ? 0 : Math.max(total - pagadoMonto, 0)
+
+  return { periodo, fechaPago, compras, cuotas: cuotasDelMes, comision, arrastre, interes, total, pagadoMonto, pendiente }
+}
+
 // Todo lo que muestra la sección de crédito, a partir de la configuración de la tarjeta.
-// config = { nombre, diaCierre, diaPago, tasaMensual, comision, pagadoHasta }
+// config = { nombre, diaCierre, diaPago, tasaMensual, comision, pagos: [{ periodo, monto, cuenta, momento }] }
 export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotasGuardadas = []) {
   const { actual, anterior } = periodosCredito(hoy, config.diaCierre)
   // Cuotas anotadas a mano + compras en cuotas hechas con esta tarjeta
   const cuotas = [...cuotasGuardadas, ...cuotasDeCompras(movimientos, config)]
-  const comision = config.comision || 0
 
-  // Estado de cuenta ya cerrado
-  const fechaPago = fechaDePago(anterior.hasta, config.diaPago)
-  const compras = gastadoConTarjeta(movimientos, config.nombre, anterior)
-  const cuotasDelEstado = sumarCuotas(cuotasVigentes(cuotas, config.nombre, fechaPago.slice(0, 7)))
-  const pagado = config.pagadoHasta === anterior.hasta // se marcó "Ya lo pagué" para este estado de cuenta
-
-  // Próximo estado de cuenta (estimado: puede subir si sigues comprando)
-  const proximaFechaPago = fechaDePago(actual.hasta, config.diaPago)
-  const usadoActual = gastadoConTarjeta(movimientos, config.nombre, actual)
-  const vigentesProximo = cuotasVigentes(cuotas, config.nombre, proximaFechaPago.slice(0, 7))
+  const cerrado = estadoDeCuenta(movimientos, config, cuotas, anterior.hasta) // el que se paga ahora
+  const enCurso = estadoDeCuenta(movimientos, config, cuotas, actual.hasta) // el próximo (estimado)
+  const pagado = cerrado.total > 0 && cerrado.pendiente === 0
 
   // Lo que falta pagar en cuotas: desde el estado de cuenta pendiente (o el próximo, si ya pagaste)
-  const mesBase = (pagado ? proximaFechaPago : fechaPago).slice(0, 7)
+  const mesBase = (pagado ? enCurso.fechaPago : cerrado.fechaPago).slice(0, 7)
   const deudaCuotas = cuotas
     .filter((c) => mismaTarjeta(c.tarjeta, config.nombre))
     .reduce((suma, c) => suma + c.monto * restantesDe(c, mesBase), 0)
@@ -158,15 +183,22 @@ export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotasGuarda
   return {
     periodoAnterior: anterior,
     periodoActual: actual,
-    compras,
-    cuotas: cuotasDelEstado,
-    comision,
-    aPagar: compras + cuotasDelEstado + comision,
-    fechaPago,
+    // Estado de cuenta cerrado
+    compras: cerrado.compras,
+    cuotas: cerrado.cuotas,
+    comision: cerrado.comision,
+    arrastre: cerrado.arrastre, // lo que no pagaste del estado anterior
+    interesArrastre: cerrado.interes,
+    aPagar: cerrado.total,
+    pagadoMonto: cerrado.pagadoMonto,
+    pendiente: cerrado.pendiente,
+    fechaPago: cerrado.fechaPago,
     pagado,
-    usadoActual,
-    proximaFechaPago,
-    proximoEstimado: usadoActual + sumarCuotas(vigentesProximo) + comision,
+    // Estado de cuenta en curso
+    usadoActual: enCurso.compras,
+    proximaFechaPago: enCurso.fechaPago,
+    proximoEstimado: enCurso.total,
+    proximoArrastre: enCurso.arrastre + enCurso.interes, // lo que pasa de este estado al próximo
     mesBase,
     deudaCuotas,
     listaCuotas: cuotas.filter((c) => mismaTarjeta(c.tarjeta, config.nombre)), // para mostrarlas

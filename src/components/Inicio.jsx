@@ -13,23 +13,21 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.creado ?? 0) - (a.creado ?? 0))
     .slice(0, 5)
 
-  if (movimientos.length === 0) {
-    return (
-      <div className="mt-16 text-center">
-        <p className="mb-2 text-5xl" aria-hidden="true">👛</p>
-        <h2 className="mb-1 text-lg font-semibold text-stone-900 dark:text-stone-100">Aún no hay movimientos</h2>
-        <p className="mb-6 text-stone-500 dark:text-stone-400">Toca el botón + para anotar tu primer gasto.</p>
-        <button onClick={alCargarEjemplo} className="text-sm font-medium text-teal-700 underline dark:text-teal-300">
-          O carga datos de ejemplo para probar
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
-      {/* Disponible por cuenta, deuda de crédito y resumen del mes */}
+      {/* Disponible por cuenta, deuda de crédito y resumen del mes (se ve aunque aún no haya movimientos) */}
       <CuentasInicio movimientos={movimientos} />
+
+      {movimientos.length === 0 && (
+        <div className="mt-8 text-center">
+          <p className="mb-2 text-5xl" aria-hidden="true">👛</p>
+          <h2 className="mb-1 text-lg font-semibold text-stone-900 dark:text-stone-100">Aún no hay movimientos</h2>
+          <p className="mb-6 text-stone-500 dark:text-stone-400">Toca el botón + para anotar tu primer gasto.</p>
+          <button onClick={alCargarEjemplo} className="text-sm font-medium text-teal-700 underline dark:text-teal-300">
+            O carga datos de ejemplo para probar
+          </button>
+        </div>
+      )}
 
       {/* Dónde se fue la plata */}
       {top.length > 0 && (
@@ -60,19 +58,21 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
       )}
 
       {/* Últimos movimientos */}
-      <section className="rounded-3xl bg-white px-5 pt-4 pb-2 dark:bg-stone-900">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-stone-900 dark:text-stone-100">Últimos movimientos</h2>
-          <button onClick={alVerTodo} className="text-sm font-medium text-teal-700 dark:text-teal-300">
-            Ver todo
-          </button>
-        </div>
-        <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-          {ultimos.map((m) => (
-            <FilaMovimiento key={m.id} mov={m} alEditar={alEditar} />
-          ))}
-        </ul>
-      </section>
+      {ultimos.length > 0 && (
+        <section className="rounded-3xl bg-white px-5 pt-4 pb-2 dark:bg-stone-900">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-stone-900 dark:text-stone-100">Últimos movimientos</h2>
+            <button onClick={alVerTodo} className="text-sm font-medium text-teal-700 dark:text-teal-300">
+              Ver todo
+            </button>
+          </div>
+          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+            {ultimos.map((m) => (
+              <FilaMovimiento key={m.id} mov={m} alEditar={alEditar} />
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

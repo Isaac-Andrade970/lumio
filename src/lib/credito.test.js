@@ -186,3 +186,50 @@ describe('compras en cuotas', () => {
     expect(r.deudaCuotas).toBe(21500 * 3 + 20000 * 6)
   })
 })
+
+describe('pagos parciales', () => {
+  // Estado de cuenta que cerró el 20 de octubre: 35.000 de compras + 201.157 de cuotas + 2.990 de comisión = 239.147
+  const base = { nombre: 'Crédito Banco C', diaCierre: 20, diaPago: 5, tasaMensual: 3, comision: 2990 }
+  const total = 35000 + 201157 + 2990
+
+  it('sin pagos, todo está pendiente y no se arrastra nada al próximo', () => {
+    const r = resumenCredito(movs, base, '2026-10-26', cuotas)
+    expect(r.pendiente).toBe(total)
+    expect(r.pagado).toBe(false)
+    expect(r.proximoArrastre).toBe(0)
+  })
+
+  it('un pago menor deja un pendiente que pasa al próximo estado con interés', () => {
+    const config = { ...base, pagos: [{ periodo: '2026-10-20', monto: 100000, cuenta: 'Débito Banco A', momento: 1 }] }
+    const r = resumenCredito(movs, config, '2026-10-26', cuotas)
+    const falta = total - 100000
+    expect(r.pagadoMonto).toBe(100000)
+    expect(r.pendiente).toBe(falta)
+    expect(r.pagado).toBe(false)
+    expect(r.proximoArrastre).toBe(falta + Math.round(falta * 0.03))
+    expect(r.proximoEstimado).toBe(8000 + 201157 + 2990 + falta + Math.round(falta * 0.03))
+  })
+
+  it('dos pagos que suman el total lo dejan pagado', () => {
+    const config = {
+      ...base,
+      pagos: [
+        { periodo: '2026-10-20', monto: 100000, cuenta: null, momento: 1 },
+        { periodo: '2026-10-20', monto: total - 100000, cuenta: null, momento: 2 },
+      ],
+    }
+    const r = resumenCredito(movs, config, '2026-10-26', cuotas)
+    expect(r.pendiente).toBe(0)
+    expect(r.pagado).toBe(true)
+    expect(r.proximoArrastre).toBe(0)
+  })
+
+  it('al mes siguiente, el estado de cuenta incluye lo que quedó pendiente', () => {
+    const config = { ...base, pagos: [{ periodo: '2026-10-20', monto: 100000, cuenta: null, momento: 1 }] }
+    const r = resumenCredito(movs, config, '2026-11-26', cuotas) // ahora el cerrado es el del 20 de noviembre
+    const falta = total - 100000
+    expect(r.arrastre).toBe(falta)
+    expect(r.interesArrastre).toBe(Math.round(falta * 0.03))
+    expect(r.aPagar).toBe(8000 + 201157 + 2990 + falta + Math.round(falta * 0.03))
+  })
+})

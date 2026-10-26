@@ -41,19 +41,29 @@ export default function SeccionCredito({ movimientos }) {
 // Lo que se muestra de cada tarjeta de crédito ya configurada
 function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
   const r = resumenCredito(movimientos, config, undefined, cuotas) // undefined = usar la fecha de hoy
-  const [voyAPagar, setVoyAPagar] = useState(0) // para el simulador de "¿y si no pago el total?"
-
   const cuentas = useLiveQuery(() => db.cuentas.toArray(), [], [])
-  const [cuentaPago, setCuentaPago] = useState('') // desde qué cuenta pagaste el estado de cuenta
 
-  // Marca el estado de cuenta como pagado y, si elegiste cuenta, lo descuenta de ella
-  function marcarPagado() {
-    const pago = { periodo: r.periodoAnterior.hasta, monto: r.aPagar, cuenta: cuentaPago || null, momento: Date.now() }
-    guardarCredito({ ...config, pagadoHasta: r.periodoAnterior.hasta, pagos: [...(config.pagos ?? []), pago] })
+  const [montoPago, setMontoPago] = useState(0) // 0 = pagar todo lo pendiente
+  const [cuentaPago, setCuentaPago] = useState('') // desde qué cuenta pagaste
+  const aPagarAhora = montoPago || r.pendiente
+  const faltaria = Math.max(r.pendiente - aPagarAhora, 0) // lo que quedaría sin pagar con este pago
+  const interesFaltante = interesEstimado(faltaria, config.tasaMensual)
+
+  const pagosDelEstado = (config.pagos ?? []).filter((p) => p.periodo === r.periodoAnterior.hasta)
+  const tasaTexto = String(config.tasaMensual ?? 0).replace('.', ',')
+
+  // Guarda el pago; si elegiste cuenta, se descuenta de su saldo
+  function registrarPago() {
+    const pago = { periodo: r.periodoAnterior.hasta, monto: aPagarAhora, cuenta: cuentaPago || null, momento: Date.now() }
+    guardarCredito({ ...config, pagos: [...(config.pagos ?? []), pago] })
+    setMontoPago(0)
   }
 
-  const pendiente = Math.max(r.aPagar - voyAPagar, 0)
-  const interes = interesEstimado(pendiente, config.tasaMensual)
+  // Quita el último pago de este estado de cuenta (por si te equivocaste)
+  function deshacerUltimoPago() {
+    const ultimo = pagosDelEstado.at(-1)
+    guardarCredito({ ...config, pagos: (config.pagos ?? []).filter((p) => p !== ultimo) })
+  }
 
   return (
     <section className="rounded-3xl bg-white p-5 dark:bg-stone-900">
@@ -75,49 +85,88 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
           {r.cuotas > 0 && ` · Cuotas: ${formatearPesos(r.cuotas)}`}
           {r.comision > 0 && ` · Comisión: ${formatearPesos(r.comision)}`}
         </p>
-
-        {r.pagado ? (
-          <p className="mt-3 text-sm font-medium text-teal-700 dark:text-teal-300">✓ Pagado</p>
-        ) : (
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="text-sm text-stone-700 dark:text-stone-300">
-              Paga antes del <span className="font-semibold">{fechaCorta(r.fechaPago)}</span>
-            </p>
-            {r.aPagar > 0 && cuentas.length === 0 && (
-              <button onClick={marcarPagado} className="shrink-0 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white">
-                Ya lo pagué
-              </button>
-            )}
-          </div>
+        {r.arrastre > 0 && (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            Incluye {formatearPesos(r.arrastre)} que no pagaste del estado anterior + {formatearPesos(r.interesArrastre)} de interés (aprox.)
+          </p>
         )}
+
+        {/* Estado del pago */}
+        <div className="mt-3 text-sm">
+          {r.pagado ? (
+            <p className="font-medium text-teal-700 dark:text-teal-300">✓ Pagado {r.pagadoMonto > 0 && `(${formatearPesos(r.pagadoMonto)})`}</p>
+          ) : r.pagadoMonto > 0 ? (
+            <p className="text-stone-700 dark:text-stone-300">
+              Pagaste {formatearPesos(r.pagadoMonto)} · te faltan <span className="font-semibold">{formatearPesos(r.pendiente)}</span> antes del{' '}
+              {fechaCorta(r.fechaPago)}
+            </p>
+          ) : (
+            r.aPagar > 0 && (
+              <p className="text-stone-700 dark:text-stone-300">
+                Paga antes del <span className="font-semibold">{fechaCorta(r.fechaPago)}</span>
+              </p>
+            )
+          )}
+          {pagosDelEstado.length > 0 && (
+            <button onClick={deshacerUltimoPago} className="mt-1 text-xs text-stone-500 underline dark:text-stone-400">
+              Deshacer último pago
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Si tienes cuentas, al pagar eliges desde cuál: así se descuenta de su saldo */}
-      {!r.pagado && r.aPagar > 0 && cuentas.length > 0 && (
-        <div className="mt-2 flex items-center gap-2">
-          <select
-            value={cuentaPago}
-            onChange={(e) => setCuentaPago(e.target.value)}
-            aria-label="Cuenta desde la que pagaste"
-            className="min-w-0 flex-1 rounded-lg bg-stone-100 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
-          >
-            <option value="">Pagué desde…</option>
-            {cuentas.map((c) => (
-              <option key={c.nombre} value={c.nombre}>{c.nombre}</option>
-            ))}
-          </select>
+      {/* Registrar un pago: el total o una parte */}
+      {!r.pagado && r.pendiente > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              value={montoPago ? formatearPesos(montoPago) : ''}
+              placeholder={formatearPesos(r.pendiente)}
+              onChange={(e) => setMontoPago(Math.min(leerMonto(e.target.value), r.pendiente))}
+              aria-label="Cuánto pagaste"
+              className="min-w-0 flex-1 rounded-lg bg-stone-100 px-3 py-2 text-base tabular-nums outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            />
+            {cuentas.length > 0 && (
+              <select
+                value={cuentaPago}
+                onChange={(e) => setCuentaPago(e.target.value)}
+                aria-label="Cuenta desde la que pagaste"
+                className="min-w-0 flex-1 rounded-lg bg-stone-100 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+              >
+                <option value="">Desde…</option>
+                {cuentas.map((c) => (
+                  <option key={c.nombre} value={c.nombre}>{c.nombre}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <button
-            onClick={marcarPagado}
-            disabled={!cuentaPago}
-            className="shrink-0 rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+            onClick={registrarPago}
+            disabled={cuentas.length > 0 && !cuentaPago}
+            className="w-full rounded-xl bg-teal-700 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
           >
-            Ya lo pagué
+            {faltaria > 0 ? `Registrar pago de ${formatearPesos(aPagarAhora)}` : 'Ya lo pagué (total)'}
           </button>
+
+          {/* Qué pasa con lo que no pagues */}
+          {faltaria > 0 ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Te faltarían {formatearPesos(faltaria)}: pasan al estado del {fechaCorta(r.proximaFechaPago)}
+              {config.tasaMensual > 0
+                ? ` con aprox. ${formatearPesos(interesFaltante)} de interés (${tasaTexto}% mensual).`
+                : ' con interés (agrega la tasa en Editar para estimarlo).'}
+            </p>
+          ) : (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Escribe un monto menor si no pagas todo. Pagando el total no pagas interés por tus compras en 1 cuota.
+            </p>
+          )}
         </div>
       )}
 
       {/* 2) Período en curso */}
-      <div className="mt-3 flex items-baseline justify-between px-1">
+      <div className="mt-4 flex items-baseline justify-between px-1">
         <div>
           <p className="text-sm text-stone-500 dark:text-stone-400">Usado desde el {fechaCorta(r.periodoActual.desde)}</p>
           <p className="text-xs text-stone-400">Se factura el {fechaCorta(r.periodoActual.hasta)}</p>
@@ -125,50 +174,17 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
         <p className="text-xl font-semibold text-stone-900 tabular-nums dark:text-stone-100">{formatearPesos(r.usadoActual)}</p>
       </div>
 
-      {/* Lo que se viene: lo usado + cuotas que siguen + comisión (puede subir si sigues comprando) */}
+      {/* Lo que se viene: lo usado + cuotas + comisión + lo que no pagaste (puede subir si sigues comprando) */}
       <div className="mt-2 flex items-baseline justify-between px-1">
         <p className="text-sm text-stone-500 dark:text-stone-400">Próximo estado de cuenta (estimado)</p>
         <p className="font-semibold text-stone-700 tabular-nums dark:text-stone-300">{formatearPesos(r.proximoEstimado)}</p>
       </div>
-      <p className="px-1 text-xs text-stone-400">A pagar el {fechaCorta(r.proximaFechaPago)}</p>
+      <p className="px-1 text-xs text-stone-400">
+        A pagar el {fechaCorta(r.proximaFechaPago)}
+        {r.proximoArrastre > 0 && ` · incluye ${formatearPesos(r.proximoArrastre)} pendiente con interés`}
+      </p>
 
       <CuotasCredito tarjeta={config.nombre} cuotas={r.listaCuotas} mesBase={r.mesBase} deuda={r.deudaCuotas} />
-
-      {/* 3) Simulador: qué pasa si no pago el total */}
-      {!r.pagado && r.aPagar > 0 && (
-        <div className="mt-4 border-t border-stone-100 pt-4 dark:border-stone-800">
-          <p className="mb-2 text-sm font-medium text-stone-900 dark:text-stone-100">¿Y si no pago el total?</p>
-          {config.tasaMensual > 0 ? (
-            <>
-              <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
-                Si pago
-                <input
-                  inputMode="numeric"
-                  value={voyAPagar ? formatearPesos(voyAPagar) : ''}
-                  placeholder={formatearPesos(r.aPagar)}
-                  onChange={(e) => setVoyAPagar(Math.min(leerMonto(e.target.value), r.aPagar))}
-                  className="min-w-0 flex-1 rounded-lg bg-stone-100 px-3 py-2 text-base tabular-nums outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
-                />
-              </label>
-              {voyAPagar > 0 && pendiente > 0 ? (
-                <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
-                  Quedarían <span className="font-semibold">{formatearPesos(pendiente)}</span> pendientes y pagarías aprox.{' '}
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">{formatearPesos(interes)} de interés</span> el próximo mes
-                  ({String(config.tasaMensual).replace('.', ',')}% mensual).
-                </p>
-              ) : (
-                <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-                  Pagando el total no pagas interés por tus compras en 1 cuota.
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-stone-500 dark:text-stone-400">
-              Agrega la tasa de interés de tu tarjeta en <span className="font-medium">Editar</span> para ver cuánto te costaría.
-            </p>
-          )}
-        </div>
-      )}
     </section>
   )
 }

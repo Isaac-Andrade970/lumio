@@ -34,8 +34,8 @@ export function resumenCuentas(cuentas, movimientos, creditos = [], cuotas = [],
   // Cada tarjeta de crédito: lo pendiente del estado de cuenta, o si ya está pagado, lo estimado del próximo
   const deudas = creditos.map((config) => {
     const r = resumenCredito(movimientos, config, hoy, cuotas)
-    return !r.pagado && r.aPagar > 0
-      ? { nombre: config.nombre, monto: r.aPagar, fecha: r.fechaPago, estimado: false }
+    return r.pendiente > 0
+      ? { nombre: config.nombre, monto: r.pendiente, fecha: r.fechaPago, estimado: false }
       : { nombre: config.nombre, monto: r.proximoEstimado, fecha: r.proximaFechaPago, estimado: true }
   })
 

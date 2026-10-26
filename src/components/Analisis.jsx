@@ -34,7 +34,13 @@ export default function Analisis({ movimientos }) {
   const variacion = variacionPorcentual(gastoActual, gastoAnterior)
 
   if (movimientos.length === 0) {
-    return <p className="mt-16 text-center text-stone-500 dark:text-stone-400">Anota algunos movimientos para ver tu análisis.</p>
+    // Sin movimientos no hay gráficos, pero la tarjeta de crédito (cuotas, pagos) se puede usar igual
+    return (
+      <div className="space-y-4">
+        <p className="mt-8 text-center text-stone-500 dark:text-stone-400">Anota algunos movimientos para ver tu análisis.</p>
+        <SeccionCredito movimientos={movimientos} />
+      </div>
+    )
   }
 
   return (
