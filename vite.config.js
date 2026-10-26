@@ -12,7 +12,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate', // se actualiza sola cuando publicas cambios
-      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'logo.png'],
+      includeAssets: ['favicon-v5.png', 'apple-touch-icon-v5.png', 'logo.png'],
       manifest: {
         name: 'Lumio',
         short_name: 'Lumio',
@@ -23,9 +23,9 @@ export default defineConfig({
         display: 'standalone', // se abre a pantalla completa, sin barra de Safari
         start_url: './',
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-192-v5.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512-v5.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-maskable-512-v5.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

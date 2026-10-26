@@ -29,7 +29,7 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
       <Cabecera
         izquierda={
           <>
-            <img src="./icon-192.png" alt="Lumio" width="42" height="42" className="shrink-0 rounded-xl shadow-md shadow-black/30" />
+            <img src="./icon-192-v5.png" alt="Lumio" width="42" height="42" className="shrink-0 rounded-xl shadow-md shadow-black/30" />
             <div>
               <p className="text-sm text-teal-300">Disponible</p>
               <p className={`text-[30px] leading-tight font-semibold tracking-tight tabular-nums ${tarjetas.disponible < 0 ? 'text-amber-300' : ''}`}>

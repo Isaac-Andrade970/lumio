@@ -40,7 +40,7 @@ export default function Ajustes({ movimientos, wallet, alAviso, alVerNovedades }
 
       <Grupo titulo="Acerca de">
         <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-stone-900">
-          <img src="./icon-192.png" alt="" width="52" height="52" className="shrink-0 rounded-[14px]" />
+          <img src="./icon-192-v5.png" alt="" width="52" height="52" className="shrink-0 rounded-[14px]" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-stone-900 dark:text-stone-100">Lumio</p>
             <p className="text-sm text-stone-500 dark:text-stone-400">Tus gastos, en un solo lugar</p>
