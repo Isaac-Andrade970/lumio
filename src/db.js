@@ -57,7 +57,8 @@ export function borrarCredito(nombre) {
 //   categoria: 'comida',
 //   fecha: '2026-10-21',      // AAAA-MM-DD (así se ordena bien como texto)
 //   nota: 'almuerzo',
-//   origen: 'manual',         // 'manual' | 'atajo' | 'cartola' | 'ejemplo'
+//   origen: 'manual',         // 'manual' | 'wallet' | 'cartola' | 'ejemplo'
+//   externoId: 'wallet-...',  // solo en importados: evita duplicados
 //   creado: 1761000000000,    // marca de tiempo para detectar duplicados
 // }
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, guardarCredito, borrarCredito, guardarCuota, borrarCuota } from '../db.js'
 import { tarjetasUsadas } from '../lib/calculos.js'
-import { resumenCredito, interesEstimado, cuotasRestantes } from '../lib/credito.js'
+import { resumenCredito, interesEstimado, restantesDe } from '../lib/credito.js'
 import { formatearPesos, fechaCorta, leerMonto, nombreMes } from '../lib/formato.js'
 
 // Sección de tarjetas de crédito en Análisis.
@@ -102,7 +102,7 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
       </div>
       <p className="px-1 text-xs text-stone-400">A pagar el {fechaCorta(r.proximaFechaPago)}</p>
 
-      <CuotasCredito tarjeta={config.nombre} cuotas={cuotas.filter((c) => c.tarjeta === config.nombre)} mesBase={r.mesBase} deuda={r.deudaCuotas} />
+      <CuotasCredito tarjeta={config.nombre} cuotas={r.listaCuotas} mesBase={r.mesBase} deuda={r.deudaCuotas} />
 
       {/* 3) Simulador: qué pasa si no pago el total */}
       {!r.pagado && r.aPagar > 0 && (
@@ -153,7 +153,7 @@ function CuotasCredito({ tarjeta, cuotas, mesBase, deuda }) {
 
   // Solo se muestran las que todavía tienen cuotas por pagar, la que termina antes primero
   const vigentes = cuotas
-    .map((c) => ({ ...c, restantes: cuotasRestantes(c.hasta, mesBase) }))
+    .map((c) => ({ ...c, restantes: restantesDe(c, mesBase) }))
     .filter((c) => c.restantes > 0)
     .sort((a, b) => a.hasta.localeCompare(b.hasta))
   const totalMensual = vigentes.reduce((suma, c) => suma + c.monto, 0)
@@ -190,17 +190,26 @@ function CuotasCredito({ tarjeta, cuotas, mesBase, deuda }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-stone-900 dark:text-stone-100">{c.descripcion}</p>
                 <p className="text-xs text-stone-500 dark:text-stone-400">
-                  {c.restantes === 1 ? 'Última cuota' : `Quedan ${c.restantes} cuotas`} · hasta {nombreMes(c.hasta).toLowerCase()}
+                  {c.desde && c.desde > mesBase
+                    ? `${c.restantes} cuotas · empieza en ${nombreMes(c.desde).toLowerCase()}`
+                    : c.restantes === 1
+                      ? 'Última cuota'
+                      : `Quedan ${c.restantes} cuotas · hasta ${nombreMes(c.hasta).toLowerCase()}`}
                 </p>
               </div>
               <p className="text-sm font-semibold tabular-nums text-stone-900 dark:text-stone-100">{formatearPesos(c.monto)}</p>
-              <button
-                onClick={() => borrarCuota(c.id)}
-                aria-label={`Quitar cuota de ${c.descripcion}`}
-                className="-mr-2 grid size-8 place-items-center rounded-full text-stone-400 active:bg-stone-100 dark:active:bg-stone-800"
-              >
-                ✕
-              </button>
+              {/* Las cuotas que vienen de un gasto se cambian editando ese gasto; las anotadas a mano se pueden quitar */}
+              {c.deCompra ? (
+                <span className="w-6" aria-hidden="true" />
+              ) : (
+                <button
+                  onClick={() => borrarCuota(c.id)}
+                  aria-label={`Quitar cuota de ${c.descripcion}`}
+                  className="-mr-2 grid size-8 place-items-center rounded-full text-stone-400 active:bg-stone-100 dark:active:bg-stone-800"
+                >
+                  ✕
+                </button>
+              )}
             </li>
           ))}
         </ul>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro, resumenUltimosMeses, variacionPorcentual, gastosHastaElDia, tarjetaDe, tarjetasUsadas, gastosPorTarjeta} from './calculos.js'
+import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro, resumenUltimosMeses, variacionPorcentual, gastosHastaElDia, tarjetaDe, tarjetasUsadas, gastosPorTarjeta, unirTarjetas } from './calculos.js'
 import { formatearPesos, leerMonto, sumarMeses } from './formato.js'
 
 const movs = [
@@ -130,6 +130,30 @@ describe('tarjetas', () => {
       { tarjeta: 'Mastercard', total: 12000 },
       { tarjeta: 'Visa Débito', total: 8990 },
       { tarjeta: 'Sin indicar', total: 1000 },
+    ])
+  })
+})
+
+describe('tarjetas con nombres escritos distinto', () => {
+  const movs2 = [
+    { tipo: 'gasto', monto: 1000, fecha: '2026-10-21', medioPago: 'Crédito Banco C' },
+    { tipo: 'gasto', monto: 2000, fecha: '2026-10-22', medioPago: 'CRÉDITO BANCO C' },
+    { tipo: 'gasto', monto: 3000, fecha: '2026-10-22', medioPago: 'Débito Banco A' },
+  ]
+  it('tarjetasUsadas no repite la misma tarjeta', () => {
+    expect(tarjetasUsadas(movs2)).toHaveLength(2)
+  })
+  it('gastosPorTarjeta suma juntas las variantes del mismo nombre', () => {
+    expect(gastosPorTarjeta(movs2, '2026-10')).toEqual([
+      { tarjeta: 'Crédito Banco C', total: 3000 },
+      { tarjeta: 'Débito Banco A', total: 3000 },
+    ])
+  })
+  it('unirTarjetas junta listas sin repetir', () => {
+    expect(unirTarjetas(['Débito Banco A'], ['crédito banco c', 'DÉBITO BANCO A'], ['Efectivo'])).toEqual([
+      'Débito Banco A',
+      'crédito banco c',
+      'Efectivo',
     ])
   })
 })

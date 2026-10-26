@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { periodosCredito, fechaDePago, gastadoConTarjeta, interesEstimado, resumenCredito, cuotasRestantes, cuotasVigentes, mismaTarjeta } from './credito.js'
+import { periodosCredito, fechaDePago, gastadoConTarjeta, interesEstimado, resumenCredito, cuotasRestantes, cuotasVigentes, mismaTarjeta, primerMesDePago, cuotasDeCompras } from './credito.js'
 
 describe('periodosCredito', () => {
   it('después del cierre, el período actual termina el próximo mes', () => {
@@ -151,5 +151,38 @@ describe('mismaTarjeta', () => {
   it('la tarjeta configurada a mano reconoce los pagos de Wallet aunque cambien mayúsculas', () => {
     const pagos = [{ tipo: 'gasto', monto: 9990, fecha: '2026-10-25', medioPago: 'CRÉDITO BANCO C' }]
     expect(gastadoConTarjeta(pagos, 'Crédito Banco C', { desde: '2026-10-21', hasta: '2026-11-20' })).toBe(9990)
+  })
+})
+
+describe('compras en cuotas', () => {
+  const config = { nombre: 'Crédito Banco C', diaCierre: 20, diaPago: 5, comision: 0 }
+  const compras = [
+    // 6 cuotas comprada el 22 de octubre: cae en el período que cierra el 20 de noviembre -> 1ª cuota en diciembre
+    { id: 7, tipo: 'gasto', monto: 120000, fecha: '2026-10-22', nota: 'Audífonos', medioPago: 'Crédito Banco C', cuotas: 6 },
+    // 3 cuotas con interés: el valor de la cuota viene del voucher
+    { id: 8, tipo: 'gasto', monto: 60000, fecha: '2026-10-10', nota: 'Zapatos', medioPago: 'Crédito Banco C', cuotas: 3, valorCuota: 21500 },
+    // en 1 cuota: se cobra completo
+    { id: 9, tipo: 'gasto', monto: 9990, fecha: '2026-10-23', nota: 'Sushi', medioPago: 'Crédito Banco C', cuotas: 1 },
+  ]
+
+  it('la primera cuota se paga en el estado de cuenta donde cae la compra', () => {
+    expect(primerMesDePago('2026-10-22', config)).toBe('2026-12')
+    expect(primerMesDePago('2026-10-10', config)).toBe('2026-11')
+  })
+
+  it('convierte las compras en cuotas comprometidas', () => {
+    expect(cuotasDeCompras(compras, config)).toEqual([
+      { id: 'compra-7', deCompra: true, tarjeta: 'Crédito Banco C', descripcion: 'Audífonos', monto: 20000, desde: '2026-12', hasta: '2027-05' },
+      { id: 'compra-8', deCompra: true, tarjeta: 'Crédito Banco C', descripcion: 'Zapatos', monto: 21500, desde: '2026-11', hasta: '2027-01' },
+    ])
+  })
+
+  it('las compras en cuotas no se suman enteras al estado de cuenta, solo su cuota', () => {
+    const r = resumenCredito(compras, config, '2026-10-26')
+    expect(r.compras).toBe(0) // Zapatos (10 oct) va en cuotas
+    expect(r.cuotas).toBe(21500) // 1ª cuota de Zapatos en noviembre
+    expect(r.usadoActual).toBe(9990) // solo el Sushi en 1 cuota
+    expect(r.proximoEstimado).toBe(9990 + 21500 + 20000) // diciembre: Sushi + Zapatos + 1ª de Audífonos
+    expect(r.deudaCuotas).toBe(21500 * 3 + 20000 * 6)
   })
 })

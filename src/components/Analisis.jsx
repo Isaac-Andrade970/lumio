@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { gastosPorCategoria, resumenUltimosMeses, gastosHastaElDia,gastosPorTarjeta, variacionPorcentual } from '../lib/calculos.js'
+import { gastosPorCategoria, resumenUltimosMeses, gastosHastaElDia, variacionPorcentual, gastosPorTarjeta } from '../lib/calculos.js'
 import { buscarCategoria } from '../lib/categorias.js'
 import SeccionCredito from './SeccionCredito.jsx'
 import { formatearPesos, hoyISO, mesDe, sumarMeses, nombreMes, nombreMesCorto } from '../lib/formato.js'

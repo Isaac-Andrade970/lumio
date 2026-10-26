@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { agruparPorDia, tarjetaDe, tarjetasUsadas, SIN_TARJETA } from '../lib/calculos.js'
 import { formatearPesos, nombreDia } from '../lib/formato.js'
+import { mismaTarjeta } from '../lib/credito.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
 import ConexionWallet from './ConexionWallet.jsx'
 
@@ -15,10 +16,10 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
   if (movimientos.some((m) => tarjetaDe(m) === SIN_TARJETA)) tarjetas.push(SIN_TARJETA)
 
   const texto = busqueda.trim().toLowerCase()
-    const filtrados = movimientos.filter(
+  const filtrados = movimientos.filter(
     (m) =>
       (filtro === 'todos' || m.tipo === filtro) &&
-      (tarjeta === 'todas' || tarjetaDe(m) === tarjeta) &&
+      (tarjeta === 'todas' || mismaTarjeta(tarjetaDe(m), tarjeta)) &&
       (!texto || m.nota?.toLowerCase().includes(texto) || m.categoria.includes(texto)),
   )
   // Total de gastos de lo que se está mostrando (útil al filtrar por tarjeta)
@@ -27,9 +28,10 @@ export default function Movimientos({ movimientos, alEditar, alBorrar, wallet })
 
   return (
     <div className="space-y-4">
-            {wallet && (
+      {wallet && (
         <ConexionWallet conectada={wallet.conectada} alConectar={wallet.alConectar} alDesconectar={wallet.alDesconectar} />
       )}
+
       <input
         type="search"
         value={busqueda}

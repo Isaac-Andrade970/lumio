@@ -1,8 +1,12 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { CATEGORIAS, categoriaOtros } from '../lib/categorias.js'
-import { ordenarPorUso, tarjetasUsadas } from '../lib/calculos.js'
-import { formatearPesos, hoyISO } from '../lib/formato.js'
-import { agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
+import { ordenarPorUso, tarjetasUsadas, unirTarjetas } from '../lib/calculos.js'
+import { mismaTarjeta, primerMesDePago } from '../lib/credito.js'
+import { formatearPesos, hoyISO, leerMonto, nombreMes, sumarMeses } from '../lib/formato.js'
+import { db, agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
+
+const OPCIONES_CUOTAS = [1, 2, 3, 4, 6, 10, 12, 18, 24, 36]
 
 // Hoja que sube desde abajo para anotar un gasto o ingreso.
 // "inicial" trae datos pre-rellenados (por ejemplo, desde un Atajo de Apple Pay).
@@ -13,18 +17,35 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   const [nota, setNota] = useState(inicial?.nota ?? '')
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyISO())
   const [medioPago, setMedioPago] = useState(inicial?.medioPago ?? '')
+  const [escribiendoTarjeta, setEscribiendoTarjeta] = useState(false)
+  const [cuotas, setCuotas] = useState(inicial?.cuotas ?? 1)
+  const [valorCuota, setValorCuota] = useState(inicial?.valorCuota ?? 0) // 0 = calcular monto ÷ cuotas
 
-  // Opciones de "Pagado con": las tarjetas que ya usaste (vienen de Wallet) + Efectivo
-  const mediosDePago = tarjetasUsadas(movimientos)
-  if (!mediosDePago.includes('Efectivo')) mediosDePago.push('Efectivo')
-  const [error, setError] = useState('')
+  // Tus tarjetas de crédito configuradas en Análisis (aparecen aunque todavía no las hayas usado)
+  const creditos = useLiveQuery(() => db.creditos.toArray(), [], [])
 
-// Si "inicial" trae un id, es un movimiento que ya existe: estamos editando
+  // Opciones de "Pagado con": tarjetas ya usadas + tarjetas de crédito + Efectivo (+ la del gasto que editas)
+  const mediosDePago = unirTarjetas(
+    tarjetasUsadas(movimientos),
+    creditos.map((c) => c.nombre),
+    ['Efectivo'],
+    inicial?.medioPago ? [inicial.medioPago] : [],
+  )
+
+  // Si lo que elegiste es una tarjeta de crédito configurada, se puede pagar en cuotas
+  const credito = creditos.find((c) => mismaTarjeta(c.nombre, medioPago))
+  const enCuotas = tipo === 'gasto' && credito && cuotas > 1
+  const cuotaCalculada = enCuotas ? valorCuota || Math.round(monto / cuotas) : 0
+  const primeraCuota = enCuotas ? primerMesDePago(fecha, credito) : null
+
+  // Si "inicial" trae un id, es un movimiento que ya existe: estamos editando
   const editando = Boolean(inicial?.id)
+  const [error, setError] = useState('')
   const [avisoDuplicado, setAvisoDuplicado] = useState(false)
 
+  // Las más usadas primero; si editas, la categoría del movimiento va al principio para que se vea
   const categorias = ordenarPorUso(CATEGORIAS[tipo], movimientos).sort(
-  (a, b) => (b.id === inicial?.categoria) - (a.id === inicial?.categoria),
+    (a, b) => (b.id === inicial?.categoria) - (a.id === inicial?.categoria),
   )
 
   function cambiarTipo(nuevo) {
@@ -49,12 +70,14 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       categoria: categoria ?? categoriaOtros(tipo),
       fecha,
       nota: nota.trim(),
-      medioPago: tipo === 'gasto' ? medioPago : '', // los ingresos no llevan tarjeta
+      medioPago: tipo === 'gasto' ? medioPago.trim() : '', // los ingresos no llevan tarjeta
+      cuotas: enCuotas ? cuotas : 1,
+      valorCuota: enCuotas ? cuotaCalculada : 0,
       origen: inicial?.origen ?? 'manual',
     }
     if (editando) {
-    await actualizarMovimiento(inicial.id, mov)
-    return alGuardar({ ...mov, id: inicial.id }, inicial) // "inicial" = cómo estaba antes
+      await actualizarMovimiento(inicial.id, mov)
+      return alGuardar({ ...mov, id: inicial.id }, inicial) // "inicial" = cómo estaba antes
     }
     if (!forzar && (await esPosibleDuplicado(mov))) return setAvisoDuplicado(true)
     const id = await agregarMovimiento(mov)
@@ -119,16 +142,19 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
           ))}
         </div>
 
-                {/* Pagado con (solo para gastos). Tocar la opción elegida otra vez la quita. */}
+        {/* Pagado con (solo para gastos). Tocar la opción elegida otra vez la quita. */}
         {tipo === 'gasto' && (
           <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
             <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">Pagado con</span>
             {mediosDePago.map((m) => (
               <button
                 key={m}
-                onClick={() => setMedioPago(medioPago === m ? '' : m)}
+                onClick={() => {
+                  setMedioPago(mismaTarjeta(medioPago, m) ? '' : m)
+                  setEscribiendoTarjeta(false)
+                }}
                 className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
-                  medioPago === m
+                  mismaTarjeta(medioPago, m) && !escribiendoTarjeta
                     ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
                     : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
                 }`}
@@ -136,9 +162,70 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
                 {m}
               </button>
             ))}
+            <button
+              onClick={() => {
+                setEscribiendoTarjeta(true)
+                setMedioPago('')
+              }}
+              className="shrink-0 rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 dark:border-stone-600 dark:text-stone-400"
+            >
+              + Otra
+            </button>
           </div>
         )}
-               
+
+        {/* Escribir una tarjeta que no está en la lista */}
+        {tipo === 'gasto' && escribiendoTarjeta && (
+          <input
+            autoFocus
+            value={medioPago}
+            onChange={(e) => setMedioPago(e.target.value)}
+            placeholder="Nombre de la tarjeta (como en Wallet)"
+            maxLength={40}
+            className="mb-3 w-full rounded-xl bg-stone-100 px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+          />
+        )}
+
+        {/* Cuotas: solo si pagaste con una tarjeta de crédito configurada */}
+        {tipo === 'gasto' && credito && (
+          <div className="mb-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-800">
+            <div className="flex items-center gap-2">
+              <label htmlFor="cuotas" className="text-sm text-stone-600 dark:text-stone-300">En</label>
+              <select
+                id="cuotas"
+                value={cuotas}
+                onChange={(e) => {
+                  setCuotas(Number(e.target.value))
+                  setValorCuota(0) // vuelve a calcular la cuota
+                }}
+                className="rounded-lg bg-white px-2 py-1.5 text-base outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-700 dark:text-white"
+              >
+                {OPCIONES_CUOTAS.map((n) => (
+                  <option key={n} value={n}>{n === 1 ? '1 cuota' : `${n} cuotas`}</option>
+                ))}
+              </select>
+              {enCuotas && (
+                <>
+                  <span className="text-sm text-stone-600 dark:text-stone-300">de</span>
+                  <input
+                    inputMode="numeric"
+                    value={formatearPesos(cuotaCalculada)}
+                    onChange={(e) => setValorCuota(leerMonto(e.target.value))}
+                    aria-label="Valor de cada cuota"
+                    className="min-w-0 flex-1 rounded-lg bg-white px-2 py-1.5 text-base tabular-nums outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-700 dark:text-white"
+                  />
+                </>
+              )}
+            </div>
+            {enCuotas && (
+              <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                Primera cuota en {nombreMes(primeraCuota).toLowerCase()}, última en{' '}
+                {nombreMes(sumarMeses(primeraCuota, cuotas - 1)).toLowerCase()}. Si tiene interés, cambia el valor por el del voucher.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Nota y fecha */}
         <div className="mb-3 flex gap-2">
           <input

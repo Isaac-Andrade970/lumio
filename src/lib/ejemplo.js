@@ -26,7 +26,7 @@ export function datosDeEjemplo(hoy = new Date()) {
     [35, 'gasto', 28000, 'supermercado', 'Compra mensual'],
     [38, 'ingreso', 950000, 'sueldo', 'Sueldo'],
   ]
-    const tarjetas = ['Visa Débito', 'Mastercard Crédito', 'Efectivo']
+  const tarjetas = ['Visa Débito', 'Mastercard Crédito', 'Efectivo']
   return base.map(([d, tipo, monto, categoria, nota], i) => ({
     tipo,
     monto,

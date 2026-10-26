@@ -1,6 +1,6 @@
 // Cálculos de tarjeta de crédito: períodos de facturación, fecha de pago e interés estimado.
 // Todo trabaja con fechas en texto "AAAA-MM-DD", igual que el resto de la app.
-import { hoyISO } from './formato.js'
+import { hoyISO, sumarMeses } from './formato.js'
 
 // Fecha con un día del mes, ajustado si el mes es más corto (día 31 en febrero -> 28 o 29)
 function fechaConDia(anio, mes, dia) {
@@ -56,11 +56,18 @@ export function mismaTarjeta(a, b) {
   return normalizar(a) !== '' && normalizar(a) === normalizar(b)
 }
 
-// Suma de gastos hechos con una tarjeta entre dos fechas (incluidas)
+// ¿Este gasto se pagó en varias cuotas?
+export function esEnCuotas(mov) {
+  return (mov.cuotas ?? 1) > 1
+}
+
+// Suma de gastos hechos con una tarjeta entre dos fechas (incluidas).
+// Las compras en cuotas NO se suman aquí: se cobran de a poco, como cuotas.
 export function gastadoConTarjeta(movimientos, tarjeta, { desde, hasta }) {
   let total = 0
   for (const m of movimientos) {
-    if (m.tipo === 'gasto' && mismaTarjeta(m.medioPago, tarjeta) && m.fecha >= desde && m.fecha <= hasta) total += m.monto
+    if (m.tipo !== 'gasto' || esEnCuotas(m) || !mismaTarjeta(m.medioPago, tarjeta)) continue
+    if (m.fecha >= desde && m.fecha <= hasta) total += m.monto
   }
   return total
 }
@@ -72,8 +79,32 @@ export function interesEstimado(saldoPendiente, tasaMensual) {
 }
 
 // ---- Cuotas ----
-// Una cuota comprometida: { id, tarjeta, descripcion, monto, hasta }
-// "hasta" es el mes ("AAAA-MM") en que pagas la última cuota.
+// Una cuota comprometida: { id, tarjeta, descripcion, monto, hasta, desde? }
+// "hasta" es el mes ("AAAA-MM") en que pagas la última cuota; "desde", el de la primera (opcional).
+
+// Mes en que se paga la primera cuota de una compra: el estado de cuenta donde cae esa fecha
+export function primerMesDePago(fechaCompra, config) {
+  const cierre = periodosCredito(fechaCompra, config.diaCierre).actual.hasta // cierre del período de la compra
+  return fechaDePago(cierre, config.diaPago).slice(0, 7)
+}
+
+// Convierte los gastos en cuotas de esta tarjeta en cuotas comprometidas (se calculan, no se guardan)
+export function cuotasDeCompras(movimientos, config) {
+  return movimientos
+    .filter((m) => m.tipo === 'gasto' && esEnCuotas(m) && mismaTarjeta(m.medioPago, config.nombre))
+    .map((m) => {
+      const desde = primerMesDePago(m.fecha, config)
+      return {
+        id: `compra-${m.id}`,
+        deCompra: true, // viene de un gasto: se cambia o se quita editando ese gasto
+        tarjeta: config.nombre,
+        descripcion: m.nota || 'Compra en cuotas',
+        monto: m.valorCuota || Math.round(m.monto / m.cuotas),
+        desde,
+        hasta: sumarMeses(desde, m.cuotas - 1),
+      }
+    })
+}
 
 // Cuántas cuotas quedan desde "mesDesde" hasta "mesHasta", ambos incluidos ('2026-11' a '2027-04' = 6)
 export function cuotasRestantes(mesHasta, mesDesde) {
@@ -84,7 +115,15 @@ export function cuotasRestantes(mesHasta, mesDesde) {
 
 // Cuotas de una tarjeta que todavía se cobran en el estado de cuenta que se paga en "mesPago"
 export function cuotasVigentes(cuotas, tarjeta, mesPago) {
-  return cuotas.filter((c) => mismaTarjeta(c.tarjeta, tarjeta) && c.hasta >= mesPago)
+  return cuotas.filter(
+    (c) => mismaTarjeta(c.tarjeta, tarjeta) && (!c.desde || c.desde <= mesPago) && c.hasta >= mesPago,
+  )
+}
+
+// Cuotas que quedan de una cuota comprometida, contando desde "mesBase" (o desde su primera cuota si es después)
+export function restantesDe(cuota, mesBase) {
+  const inicio = cuota.desde && cuota.desde > mesBase ? cuota.desde : mesBase
+  return cuotasRestantes(cuota.hasta, inicio)
 }
 
 function sumarCuotas(lista) {
@@ -93,8 +132,10 @@ function sumarCuotas(lista) {
 
 // Todo lo que muestra la sección de crédito, a partir de la configuración de la tarjeta.
 // config = { nombre, diaCierre, diaPago, tasaMensual, comision, pagadoHasta }
-export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotas = []) {
+export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotasGuardadas = []) {
   const { actual, anterior } = periodosCredito(hoy, config.diaCierre)
+  // Cuotas anotadas a mano + compras en cuotas hechas con esta tarjeta
+  const cuotas = [...cuotasGuardadas, ...cuotasDeCompras(movimientos, config)]
   const comision = config.comision || 0
 
   // Estado de cuenta ya cerrado
@@ -112,7 +153,7 @@ export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotas = [])
   const mesBase = (pagado ? proximaFechaPago : fechaPago).slice(0, 7)
   const deudaCuotas = cuotas
     .filter((c) => mismaTarjeta(c.tarjeta, config.nombre))
-    .reduce((suma, c) => suma + c.monto * cuotasRestantes(c.hasta, mesBase), 0)
+    .reduce((suma, c) => suma + c.monto * restantesDe(c, mesBase), 0)
 
   return {
     periodoAnterior: anterior,
@@ -128,5 +169,6 @@ export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotas = [])
     proximoEstimado: usadoActual + sumarCuotas(vigentesProximo) + comision,
     mesBase,
     deudaCuotas,
+    listaCuotas: cuotas.filter((c) => mismaTarjeta(c.tarjeta, config.nombre)), // para mostrarlas
   }
 }
