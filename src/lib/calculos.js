@@ -104,3 +104,36 @@ export function gastosHastaElDia(movimientos, mesISO, dia) {
   }
   return total
 }
+
+// ---- Tarjetas (medio de pago) ----
+
+// Nombre que se muestra cuando un movimiento no tiene medio de pago (por ejemplo, anotados antes de esta función)
+export const SIN_TARJETA = 'Sin indicar'
+
+// Con qué se pagó: "Visa Débito", "Efectivo"... o "Sin indicar"
+export function tarjetaDe(mov) {
+  return mov.medioPago?.trim() || SIN_TARJETA
+}
+
+// Lista de tarjetas distintas que aparecen en los movimientos, la más usada primero
+export function tarjetasUsadas(movimientos) {
+  const usos = {}
+  for (const m of movimientos) {
+    const nombre = m.medioPago?.trim()
+    if (nombre) usos[nombre] = (usos[nombre] ?? 0) + 1
+  }
+  return Object.keys(usos).sort((a, b) => usos[b] - usos[a])
+}
+
+// Gastos del mes agrupados por tarjeta, de mayor a menor: [{ tarjeta, total }]
+export function gastosPorTarjeta(movimientos, mesISO) {
+  const totales = {}
+  for (const m of movimientos) {
+    if (m.tipo !== 'gasto' || mesDe(m.fecha) !== mesISO) continue
+    const tarjeta = tarjetaDe(m)
+    totales[tarjeta] = (totales[tarjeta] ?? 0) + m.monto
+  }
+  return Object.entries(totales)
+    .map(([tarjeta, total]) => ({ tarjeta, total }))
+    .sort((a, b) => b.total - a.total)
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CATEGORIAS, categoriaOtros } from '../lib/categorias.js'
-import { ordenarPorUso } from '../lib/calculos.js'
+import { ordenarPorUso, tarjetasUsadas } from '../lib/calculos.js'
 import { formatearPesos, hoyISO } from '../lib/formato.js'
 import { agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
 
@@ -12,6 +12,11 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   const [categoria, setCategoria] = useState(inicial?.categoria ?? null)
   const [nota, setNota] = useState(inicial?.nota ?? '')
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyISO())
+  const [medioPago, setMedioPago] = useState(inicial?.medioPago ?? '')
+
+  // Opciones de "Pagado con": las tarjetas que ya usaste (vienen de Wallet) + Efectivo
+  const mediosDePago = tarjetasUsadas(movimientos)
+  if (!mediosDePago.includes('Efectivo')) mediosDePago.push('Efectivo')
   const [error, setError] = useState('')
 
 // Si "inicial" trae un id, es un movimiento que ya existe: estamos editando
@@ -44,6 +49,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       categoria: categoria ?? categoriaOtros(tipo),
       fecha,
       nota: nota.trim(),
+      medioPago: tipo === 'gasto' ? medioPago : '', // los ingresos no llevan tarjeta
       origen: inicial?.origen ?? 'manual',
     }
     if (editando) {
@@ -65,7 +71,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       <div
         role="dialog"
         aria-label="Nuevo movimiento"
-        className="hoja-entrar safe-bottom relative mx-auto w-full max-w-md rounded-t-3xl bg-white px-4 pt-3 shadow-2xl dark:bg-stone-900"
+        className="hoja-entrar safe-bottom relative mx-auto max-h-[95dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pt-3 shadow-2xl dark:bg-stone-900"
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-stone-300 dark:bg-stone-700" />
 
@@ -113,6 +119,26 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
           ))}
         </div>
 
+                {/* Pagado con (solo para gastos). Tocar la opción elegida otra vez la quita. */}
+        {tipo === 'gasto' && (
+          <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+            <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">Pagado con</span>
+            {mediosDePago.map((m) => (
+              <button
+                key={m}
+                onClick={() => setMedioPago(medioPago === m ? '' : m)}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+                  medioPago === m
+                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                    : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+               
         {/* Nota y fecha */}
         <div className="mb-3 flex gap-2">
           <input

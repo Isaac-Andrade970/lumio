@@ -6,6 +6,8 @@ import { formatearPesos } from '../lib/formato.js'
 export default function FilaMovimiento({ mov, alEditar, alBorrar }) {
   const cat = buscarCategoria(mov.categoria)
   const esIngreso = mov.tipo === 'ingreso'
+  // Debajo de la categoría: la nota y con qué se pagó, separados por " · " (solo los que existan)
+  const detalle = [mov.nota, mov.medioPago].filter(Boolean).join(' · ')
 
   return (
     <li className="flex items-center gap-1">
@@ -18,7 +20,7 @@ export default function FilaMovimiento({ mov, alEditar, alBorrar }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-medium text-stone-900 dark:text-stone-100">{cat.nombre}</p>
-          {mov.nota && <p className="truncate text-sm text-stone-500 dark:text-stone-400">{mov.nota}</p>}
+          {detalle && <p className="truncate text-sm text-stone-500 dark:text-stone-400">{detalle}</p>}
         </div>
         <p className={`font-semibold tabular-nums ${esIngreso ? 'text-teal-700 dark:text-teal-300' : 'text-stone-900 dark:text-stone-100'}`}>
           {esIngreso ? '+' : '−'}

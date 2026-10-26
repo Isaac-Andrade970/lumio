@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro, resumenUltimosMeses, variacionPorcentual, gastosHastaElDia } from './calculos.js'
+import { resumenDelMes, gastosPorCategoria, agruparPorDia, leerLinkNuevo, proyectarAhorro, resumenUltimosMeses, variacionPorcentual, gastosHastaElDia, tarjetaDe, tarjetasUsadas, gastosPorTarjeta} from './calculos.js'
 import { formatearPesos, leerMonto, sumarMeses } from './formato.js'
 
 const movs = [
@@ -103,5 +103,33 @@ describe('gastosHastaElDia', () => {
   it('cuenta solo los gastos hasta ese día del mes', () => {
     expect(gastosHastaElDia(movs, '2026-10', 20)).toBe(12000)
     expect(gastosHastaElDia(movs, '2026-10', 31)).toBe(18820)
+  })
+})
+
+describe('tarjetas', () => {
+  const conTarjetas = [
+    { tipo: 'gasto', monto: 5990, categoria: 'comida', fecha: '2026-10-21', medioPago: 'Visa Débito' },
+    { tipo: 'gasto', monto: 12000, categoria: 'ocio', fecha: '2026-10-22', medioPago: 'Mastercard' },
+    { tipo: 'gasto', monto: 3000, categoria: 'comida', fecha: '2026-10-23', medioPago: 'Visa Débito' },
+    { tipo: 'gasto', monto: 1000, categoria: 'otros-gasto', fecha: '2026-10-23' }, // sin tarjeta
+    { tipo: 'ingreso', monto: 900000, categoria: 'sueldo', fecha: '2026-10-01', medioPago: 'Visa Débito' },
+    { tipo: 'gasto', monto: 50000, categoria: 'ocio', fecha: '2026-09-30', medioPago: 'Mastercard' }, // otro mes
+  ]
+
+  it('tarjetaDe usa "Sin indicar" si no hay medio de pago', () => {
+    expect(tarjetaDe(conTarjetas[0])).toBe('Visa Débito')
+    expect(tarjetaDe(conTarjetas[3])).toBe('Sin indicar')
+  })
+
+  it('tarjetasUsadas lista cada tarjeta una vez, la más usada primero', () => {
+    expect(tarjetasUsadas(conTarjetas)).toEqual(['Visa Débito', 'Mastercard'])
+  })
+
+  it('gastosPorTarjeta suma solo gastos del mes, por tarjeta', () => {
+    expect(gastosPorTarjeta(conTarjetas, '2026-10')).toEqual([
+      { tarjeta: 'Mastercard', total: 12000 },
+      { tarjeta: 'Visa Débito', total: 8990 },
+      { tarjeta: 'Sin indicar', total: 1000 },
+    ])
   })
 })

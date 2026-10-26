@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { gastosPorCategoria, resumenUltimosMeses, gastosHastaElDia, variacionPorcentual } from '../lib/calculos.js'
+import { gastosPorCategoria, resumenUltimosMeses, gastosHastaElDia,gastosPorTarjeta, variacionPorcentual } from '../lib/calculos.js'
 import { buscarCategoria } from '../lib/categorias.js'
 import { formatearPesos, hoyISO, mesDe, sumarMeses, nombreMes, nombreMesCorto } from '../lib/formato.js'
 
@@ -20,6 +20,7 @@ export default function Analisis({ movimientos }) {
     color: COLORES[i % COLORES.length],
   }))
   const totalGastos = porCategoria.reduce((suma, c) => suma + c.total, 0)
+  const porTarjeta = gastosPorTarjeta(movimientos, mes)
 
   const ultimosMeses = resumenUltimosMeses(movimientos, mes, 6).map((m) => ({
     ...m,
@@ -97,6 +98,33 @@ export default function Analisis({ movimientos }) {
           </>
         )}
       </section>
+
+      {/* Por tarjeta: solo tiene sentido si este mes pagaste con más de una */}
+      {porTarjeta.length > 1 && (
+        <section className="rounded-3xl bg-white p-5 dark:bg-stone-900">
+          <h2 className="mb-3 font-semibold text-stone-900 dark:text-stone-100">Por tarjeta</h2>
+          <ul className="space-y-3">
+            {porTarjeta.map(({ tarjeta, total }) => {
+              const pct = Math.round((total / totalGastos) * 100)
+              return (
+                <li key={tarjeta}>
+                  <div className="mb-1 flex justify-between gap-3 text-sm">
+                    <span className="truncate text-stone-700 dark:text-stone-300">
+                      {tarjeta === 'Efectivo' ? '💵' : '💳'} {tarjeta}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-stone-500 dark:text-stone-400">
+                      {formatearPesos(total)} · {pct}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-stone-100 dark:bg-stone-800">
+                    <div className="h-2 rounded-full bg-teal-600" style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Barras: ingresos vs gastos de los últimos 6 meses */}
       <section className="rounded-3xl bg-white p-5 dark:bg-stone-900">
