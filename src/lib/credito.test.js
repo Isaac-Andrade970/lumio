@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { periodosCredito, fechaDePago, gastadoConTarjeta, interesEstimado, resumenCredito, cuotasRestantes, cuotasVigentes } from './credito.js'
+import { periodosCredito, fechaDePago, gastadoConTarjeta, interesEstimado, resumenCredito, cuotasRestantes, cuotasVigentes, mismaTarjeta } from './credito.js'
 
 describe('periodosCredito', () => {
   it('después del cierre, el período actual termina el próximo mes', () => {
@@ -136,5 +136,20 @@ describe('resumenCredito con cuotas', () => {
   it('si ya pagaste el estado de cuenta, la deuda se cuenta desde el próximo mes', () => {
     const r = resumenCredito(movs, { ...config, pagadoHasta: '2026-10-20' }, '2026-10-26', cuotas)
     expect(r.deudaCuotas).toBe(35583 * 5 + 23596 * 5 + 72824 * 1 + 69154 * 10)
+  })
+})
+
+describe('mismaTarjeta', () => {
+  it('ignora mayúsculas y espacios de más', () => {
+    expect(mismaTarjeta('Crédito Banco C', '  crédito   banco c ')).toBe(true)
+    expect(mismaTarjeta('Crédito Banco C', 'Débito Banco A')).toBe(false)
+  })
+  it('un nombre vacío nunca coincide', () => {
+    expect(mismaTarjeta('', '')).toBe(false)
+    expect(mismaTarjeta(undefined, 'Crédito Banco C')).toBe(false)
+  })
+  it('la tarjeta configurada a mano reconoce los pagos de Wallet aunque cambien mayúsculas', () => {
+    const pagos = [{ tipo: 'gasto', monto: 9990, fecha: '2026-10-25', medioPago: 'CRÉDITO BANCO C' }]
+    expect(gastadoConTarjeta(pagos, 'Crédito Banco C', { desde: '2026-10-21', hasta: '2026-11-20' })).toBe(9990)
   })
 })

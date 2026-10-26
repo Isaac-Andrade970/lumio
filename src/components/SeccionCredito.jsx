@@ -247,6 +247,8 @@ function CuotasCredito({ tarjeta, cuotas, mesBase, deuda }) {
 // Formulario para configurar una tarjeta de crédito
 function FormularioCredito({ inicial, tarjetas, alTerminar }) {
   const [nombre, setNombre] = useState(inicial?.nombre ?? tarjetas[0] ?? '')
+  // Se escribe el nombre a mano si todavía no hay pagos con esa tarjeta (no aparece en la lista)
+  const [escribiendo, setEscribiendo] = useState(tarjetas.length === 0 || (inicial && !tarjetas.includes(inicial.nombre)))
   const [diaCierre, setDiaCierre] = useState(String(inicial?.diaCierre ?? ''))
   const [diaPago, setDiaPago] = useState(String(inicial?.diaPago ?? ''))
   const [tasa, setTasa] = useState(inicial?.tasaMensual ? String(inicial.tasaMensual).replace('.', ',') : '')
@@ -294,15 +296,45 @@ function FormularioCredito({ inicial, tarjetas, alTerminar }) {
 
       <div>
         <label htmlFor="cr-nombre" className={etiqueta}>Tarjeta</label>
-        {/* Si ya hay pagos con tarjetas, se elige de la lista para que el nombre coincida exacto con Wallet */}
-        {tarjetas.length > 0 ? (
-          <select id="cr-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className={campo}>
+        {/* Se elige de la lista (tarjetas ya usadas) o se escribe el nombre si aún no hay pagos con ella */}
+        {escribiendo ? (
+          <>
+            <input id="cr-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Crédito Banco C" className={campo} />
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              Escríbelo igual que se llama en Wallet, para que los pagos se reconozcan solos.
+              {tarjetas.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEscribiendo(false)
+                    setNombre(tarjetas[0])
+                  }}
+                  className="ml-1 font-medium text-teal-700 underline dark:text-teal-300"
+                >
+                  Elegir de la lista
+                </button>
+              )}
+            </p>
+          </>
+        ) : (
+          <select
+            id="cr-nombre"
+            value={nombre}
+            onChange={(e) => {
+              if (e.target.value === '__otra') {
+                setEscribiendo(true) // muestra el campo para escribir
+                setNombre('')
+              } else {
+                setNombre(e.target.value)
+              }
+            }}
+            className={campo}
+          >
             {tarjetas.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
+            <option value="__otra">Otra tarjeta (escribir nombre)…</option>
           </select>
-        ) : (
-          <input id="cr-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Crédito Banco C" className={campo} />
         )}
       </div>
 

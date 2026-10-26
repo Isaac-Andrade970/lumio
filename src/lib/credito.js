@@ -50,11 +50,17 @@ export function fechaDePago(fechaCierre, diaPago) {
   return mismoMes > fechaCierre ? mismoMes : aISO(fechaConDia(a, m, diaPago))
 }
 
+// ¿Son la misma tarjeta? Ignora mayúsculas y espacios de más ("crédito banco c " = "Crédito Banco C")
+export function mismaTarjeta(a, b) {
+  const normalizar = (texto) => (texto ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+  return normalizar(a) !== '' && normalizar(a) === normalizar(b)
+}
+
 // Suma de gastos hechos con una tarjeta entre dos fechas (incluidas)
 export function gastadoConTarjeta(movimientos, tarjeta, { desde, hasta }) {
   let total = 0
   for (const m of movimientos) {
-    if (m.tipo === 'gasto' && m.medioPago === tarjeta && m.fecha >= desde && m.fecha <= hasta) total += m.monto
+    if (m.tipo === 'gasto' && mismaTarjeta(m.medioPago, tarjeta) && m.fecha >= desde && m.fecha <= hasta) total += m.monto
   }
   return total
 }
@@ -78,7 +84,7 @@ export function cuotasRestantes(mesHasta, mesDesde) {
 
 // Cuotas de una tarjeta que todavía se cobran en el estado de cuenta que se paga en "mesPago"
 export function cuotasVigentes(cuotas, tarjeta, mesPago) {
-  return cuotas.filter((c) => c.tarjeta === tarjeta && c.hasta >= mesPago)
+  return cuotas.filter((c) => mismaTarjeta(c.tarjeta, tarjeta) && c.hasta >= mesPago)
 }
 
 function sumarCuotas(lista) {
@@ -105,7 +111,7 @@ export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotas = [])
   // Lo que falta pagar en cuotas: desde el estado de cuenta pendiente (o el próximo, si ya pagaste)
   const mesBase = (pagado ? proximaFechaPago : fechaPago).slice(0, 7)
   const deudaCuotas = cuotas
-    .filter((c) => c.tarjeta === config.nombre)
+    .filter((c) => mismaTarjeta(c.tarjeta, config.nombre))
     .reduce((suma, c) => suma + c.monto * cuotasRestantes(c.hasta, mesBase), 0)
 
   return {
