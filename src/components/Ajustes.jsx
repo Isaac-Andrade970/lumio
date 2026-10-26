@@ -39,10 +39,12 @@ export default function Ajustes({ movimientos, wallet, alAviso, alVerNovedades }
       </Grupo>
 
       <Grupo titulo="Acerca de">
-        <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 dark:bg-stone-900">
-          <div>
-            <p className="font-medium text-stone-900 dark:text-stone-100">Lumio</p>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Versión {VERSION} · beta</p>
+        <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-stone-900">
+          <img src="./icon-192.png" alt="" width="52" height="52" className="shrink-0 rounded-[14px]" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-stone-900 dark:text-stone-100">Lumio</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Tus gastos, en un solo lugar</p>
+            <p className="text-xs text-stone-400">Versión {VERSION} · beta</p>
           </div>
           <button onClick={alVerNovedades} className="text-sm font-medium text-teal-700 dark:text-teal-300">
             Novedades

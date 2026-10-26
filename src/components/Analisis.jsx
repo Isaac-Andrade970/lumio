@@ -5,7 +5,7 @@ import SeccionCredito from './SeccionCredito.jsx'
 import { formatearPesos, hoyISO, mesDe, sumarMeses, nombreMes, nombreMesCorto } from '../lib/formato.js'
 
 // Un color por puesto: la categoría donde más gastas usa el primero, y así sucesivamente
-const COLORES = ['#0f766e', '#f59e0b', '#6366f1', '#ec4899', '#14b8a6', '#84cc16', '#0ea5e9', '#f97316', '#a855f7', '#78716c']
+export const COLORES = ['#8b5cf6', '#f5b942', '#34d399', '#ec4899', '#60a5fa', '#c4b5fd', '#f97316', '#14b8a6', '#a3a3c2', '#e879f9']
 
 // Pantalla de análisis: torta por categoría, barras por mes y comparación con el mes anterior
 export default function Analisis({ movimientos }) {
@@ -94,7 +94,7 @@ export default function Analisis({ movimientos }) {
                 <li key={c.categoria} className="flex items-center gap-2 text-sm">
                   <span className="size-3 shrink-0 rounded-full" style={{ background: c.color }} />
                   <span className="flex-1 text-stone-700 dark:text-stone-300">
-                    {c.emoji} {c.nombre}
+                    {c.nombre}
                   </span>
                   <span className="tabular-nums text-stone-500 dark:text-stone-400">
                     {formatearPesos(c.total)} · {Math.round((c.total / totalGastos) * 100)}%
@@ -117,7 +117,7 @@ export default function Analisis({ movimientos }) {
                 <li key={tarjeta}>
                   <div className="mb-1 flex justify-between gap-3 text-sm">
                     <span className="truncate text-stone-700 dark:text-stone-300">
-                      {tarjeta === 'Efectivo' ? '💵' : '💳'} {tarjeta}
+                      {tarjeta}
                     </span>
                     <span className="shrink-0 tabular-nums text-stone-500 dark:text-stone-400">
                       {formatearPesos(total)} · {pct}%
@@ -141,17 +141,17 @@ export default function Analisis({ movimientos }) {
         <h2 className="font-semibold text-stone-900 dark:text-stone-100">Últimos 6 meses</h2>
         <div className="mt-1 mb-2 flex gap-4 text-xs text-stone-500 dark:text-stone-400">
           <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-teal-600" /> Ingresos</span>
-          <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-stone-400" /> Gastos</span>
+          <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-teal-300" /> Gastos</span>
         </div>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={ultimosMeses} barGap={2}>
-            <XAxis dataKey="etiqueta" tickLine={false} axisLine={false} tick={{ fill: '#a8a29e', fontSize: 12 }} />
+            <XAxis dataKey="etiqueta" tickLine={false} axisLine={false} tick={{ fill: '#7c72ae', fontSize: 12 }} />
             <Tooltip
               formatter={(valor, nombre) => [formatearPesos(valor), nombre === 'ingresos' ? 'Ingresos' : 'Gastos']}
-              cursor={{ fill: 'rgba(120,113,108,0.1)' }}
+              cursor={{ fill: 'rgba(124,114,174,0.12)' }}
             />
-            <Bar dataKey="ingresos" fill="#0d9488" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="gastos" fill="#a8a29e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="ingresos" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="gastos" fill="#c4b5fd" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </section>

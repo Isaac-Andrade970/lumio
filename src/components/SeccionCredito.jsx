@@ -28,7 +28,7 @@ export default function SeccionCredito({ movimientos }) {
         onClick={() => setEditando('nueva')}
         className="flex w-full items-center justify-center gap-2 rounded-3xl border border-dashed border-teal-600 py-4 text-sm font-medium text-teal-700 dark:border-teal-400 dark:text-teal-300"
       >
-        <span aria-hidden="true">💳</span> Configurar tarjeta de crédito
+        Configurar tarjeta de crédito
       </button>
     )
   }
@@ -68,7 +68,7 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
   return (
     <section className="rounded-3xl bg-white p-5 dark:bg-stone-900">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="truncate font-semibold text-stone-900 dark:text-stone-100">💳 {config.nombre}</h2>
+        <h2 className="truncate font-semibold text-stone-900 dark:text-stone-100">{config.nombre}</h2>
         <button onClick={alEditar} className="shrink-0 text-sm font-medium text-teal-700 dark:text-teal-300">
           Editar
         </button>

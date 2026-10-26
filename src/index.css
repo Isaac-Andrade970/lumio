@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+/*
+  Paleta de Lumio v0.5 (morado).
+  En vez de cambiar cada componente, se redefinen dos escalas de Tailwind:
+  - "teal" (el color principal de antes) pasa a ser violeta
+  - "stone" (los grises) pasa a ser un gris con un toque lavanda
+  Así todas las clases existentes (bg-teal-700, text-stone-500...) toman el color nuevo.
+*/
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+
+  --color-teal-50: #f5f3ff;
+  --color-teal-100: #ede9fe;
+  --color-teal-200: #ddd6fe;
+  --color-teal-300: #c4b5fd;
+  --color-teal-400: #a78bfa;
+  --color-teal-500: #8b5cf6;
+  --color-teal-600: #7c3aed;
+  --color-teal-700: #6d28d9;
+  --color-teal-800: #5b21b6;
+  --color-teal-900: #4c1d95;
+  --color-teal-950: #2e1065;
+
+  --color-stone-50: #faf9ff;
+  --color-stone-100: #f5f3ff;
+  --color-stone-200: #e9e5fa;
+  --color-stone-300: #d4cdee;
+  --color-stone-400: #a49bc9;
+  --color-stone-500: #7c72ae;
+  --color-stone-600: #5e548e;
+  --color-stone-700: #4c3f86;
+  --color-stone-800: #2a2150;
+  --color-stone-900: #1e1b4b;
+  --color-stone-950: #110b26;
+}
+
 /* El modo oscuro sigue la configuración del iPhone automáticamente */
 
 html,
@@ -14,6 +49,17 @@ body {
   body {
     background: var(--color-stone-950);
   }
+}
+
+/* Encabezado morado de cada pantalla */
+.cabecera {
+  background: radial-gradient(120% 90% at 50% 0%, #4c1d95 0%, #2e1065 60%, #1e0b47 100%);
+}
+
+/* Botón + y botones principales */
+.boton-morado {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  box-shadow: 0 6px 16px rgb(109 40 217 / 0.35);
 }
 
 /* Márgenes seguros para el notch y la barra de inicio del iPhone */
@@ -39,9 +85,17 @@ body {
 .fondo-entrar {
   animation: aparecer 200ms ease-out;
 }
+
+/* Las tarjetas de la billetera se acomodan con una transición suave al elegir otra */
+.tarjeta-pila {
+  transition: top 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hoja-entrar,
-  .fondo-entrar {
+  .fondo-entrar,
+  .tarjeta-pila {
     animation: none;
+    transition: none;
   }
 }

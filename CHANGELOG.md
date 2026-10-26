@@ -2,6 +2,21 @@
 
 Todos los cambios importantes de Lumio. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [versionado semántico](https://semver.org/lang/es/).
 
+## [0.5.0] - 2026-10-26 · Nuevo diseño
+
+### Agregado
+- Logo e íconos nuevos (pantalla de inicio del iPhone, favicon y versión adaptable para Android).
+- Inicio con tarjetas apiladas estilo Wallet: cuentas, efectivo y tarjetas de crédito. Al tocar una se ve su detalle (gastado y recibido del mes, cuotas vigentes y últimos movimientos).
+- Encabezados con resumen: gastos e ingresos del mes en Movimientos y total gastado por categoría en Análisis.
+
+### Cambiado
+- Paleta morada (violeta + gris lavanda) definida en `@theme` de Tailwind, íconos de línea en vez de emojis y barra inferior rediseñada.
+- Hoja de nuevo movimiento con encabezado morado y categorías como chips de texto.
+- Filas de movimientos: el comercio o la nota es el título y la categoría pasa al detalle.
+
+### Quitado
+- Recuadro "Donde más gastas" de Inicio (ya está en Análisis).
+
 ## [0.4.0] - 2026-10-26 · Respaldo y transferencias
 
 ### Agregado

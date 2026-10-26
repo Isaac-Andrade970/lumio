@@ -2,9 +2,20 @@
 //   1) cambia VERSION (y "version" en package.json con: npm version 0.5.0 --no-git-tag-version)
 //   2) agrega sus novedades al principio de NOVEDADES
 //   3) anótalas también en CHANGELOG.md
-export const VERSION = '0.4.0'
+export const VERSION = '0.5.0'
 
 export const NOVEDADES = [
+  {
+    version: '0.5.0',
+    fecha: '2026-10-26',
+    titulo: 'Nuevo diseño',
+    cambios: [
+      'Diseño nuevo en morado, más sobrio, con logo propio y nuevo ícono de la app.',
+      'Inicio es ahora tu billetera: tus cuentas y tarjetas apiladas como en Wallet. Toca una para ver su detalle.',
+      'Cada tarjeta muestra lo gastado y recibido del mes; la de crédito, sus cuotas que siguen.',
+      'Los movimientos muestran el comercio o la nota como nombre principal.',
+    ],
+  },
   {
     version: '0.4.0',
     fecha: '2026-10-26',

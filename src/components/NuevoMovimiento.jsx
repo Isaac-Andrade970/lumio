@@ -4,6 +4,7 @@ import { CATEGORIAS, categoriaOtros } from '../lib/categorias.js'
 import { ordenarPorUso, tarjetasUsadas, unirTarjetas } from '../lib/calculos.js'
 import { mismaTarjeta, primerMesDePago } from '../lib/credito.js'
 import { formatearPesos, hoyISO, leerMonto, nombreMes, sumarMeses } from '../lib/formato.js'
+import { Iconos } from './Marco.jsx'
 import { db, agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
 
 const OPCIONES_CUOTAS = [1, 2, 3, 4, 6, 10, 12, 18, 24, 36]
@@ -103,7 +104,6 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
     alGuardar({ ...mov, id })
   }
 
-  const colorTipo = tipo === 'ingreso' ? 'text-teal-700 dark:text-teal-300' : 'text-stone-900 dark:text-stone-50'
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col justify-end">
@@ -113,12 +113,14 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       <div
         role="dialog"
         aria-label="Nuevo movimiento"
-        className="hoja-entrar safe-bottom relative mx-auto max-h-[95dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-4 pt-3 shadow-2xl dark:bg-stone-900"
+        className="hoja-entrar safe-bottom relative mx-auto max-h-[95dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-stone-100 px-4 shadow-2xl dark:bg-stone-950"
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-stone-300 dark:bg-stone-700" />
+        {/* Parte morada de arriba: tipo y monto */}
+        <div className="cabecera -mx-4 mb-4 rounded-t-3xl px-4 pt-3 pb-4 text-white">
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/30" />
 
         {/* Gasto / Ingreso / Transferencia */}
-        <div className="mb-3 grid grid-cols-3 rounded-xl bg-stone-100 p-1 text-sm font-medium dark:bg-stone-800">
+        <div className="mb-3 grid grid-cols-3 rounded-xl bg-white/10 p-1 text-sm font-semibold">
           {[
             ['gasto', 'Gasto'],
             ['ingreso', 'Ingreso'],
@@ -128,9 +130,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
               key={t}
               onClick={() => cambiarTipo(t)}
               className={`rounded-lg py-2 transition-colors ${
-                tipo === t
-                  ? 'bg-white text-stone-900 shadow-sm dark:bg-stone-700 dark:text-white'
-                  : 'text-stone-500 dark:text-stone-400'
+                tipo === t ? 'bg-white text-teal-950 shadow-sm' : 'text-teal-200'
               }`}
             >
               {etiqueta}
@@ -140,11 +140,12 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
 
         {/* Monto */}
         <div className="mb-1 text-center">
-          <p className={`text-5xl font-semibold tracking-tight tabular-nums ${monto ? colorTipo : 'text-stone-300 dark:text-stone-600'}`}>
+          <p className={`text-5xl font-semibold tracking-tight tabular-nums ${monto ? '' : 'text-white/35'}`}>
             {tipo === 'ingreso' && monto ? '+' : ''}
             {formatearPesos(monto)}
           </p>
-          <p className="h-5 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
+          <p className="h-5 text-sm text-red-300" role="alert">{error}</p>
+        </div>
         </div>
 
         {/* Transferencias: explicación corta en vez de categorías */}
@@ -163,13 +164,12 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
               <button
                 key={c.id}
                 onClick={() => setCategoria(c.id)}
-                className={`flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-xs transition-colors ${
+                className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
                   categoria === c.id
-                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
-                    : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+                    ? 'border-teal-700 bg-teal-700 text-white'
+                    : 'border-stone-200 bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300'
                 }`}
               >
-                <span className="text-xl" aria-hidden="true">{c.emoji}</span>
                 {c.nombre}
               </button>
             ))}
@@ -189,10 +189,10 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
                 setEscribiendoTarjeta(false)
                 setError('')
               }}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium ${
                 mismaTarjeta(medioPago, m) && !escribiendoTarjeta
-                  ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
-                  : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
+                  ? 'border-teal-700 bg-teal-700 text-white'
+                  : 'border-stone-200 bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300'
               }`}
             >
               {m}
@@ -217,7 +217,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             onChange={(e) => setMedioPago(e.target.value)}
             placeholder="Nombre de la tarjeta (como en Wallet)"
             maxLength={40}
-            className="mb-3 w-full rounded-xl bg-stone-100 px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            className="mb-3 w-full rounded-xl bg-white px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
           />
         )}
 
@@ -233,9 +233,9 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
                   setEscribiendoDestino(false)
                   setError('')
                 }}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium ${
                   mismaTarjeta(destino, c) && !escribiendoDestino
-                    ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                    ? 'border-teal-700 bg-teal-700 text-white'
                     : 'border-stone-200 text-stone-600 dark:border-stone-700 dark:text-stone-300'
                 }`}
               >
@@ -260,13 +260,13 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             onChange={(e) => setDestino(e.target.value)}
             placeholder="Nombre de la cuenta (ej. Ahorro)"
             maxLength={40}
-            className="mb-3 w-full rounded-xl bg-stone-100 px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            className="mb-3 w-full rounded-xl bg-white px-3 py-2 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
           />
         )}
 
         {/* Cuotas: solo si pagaste con una tarjeta de crédito configurada */}
         {tipo === 'gasto' && credito && (
-          <div className="mb-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-800">
+          <div className="mb-3 rounded-xl bg-white p-3 dark:bg-stone-900">
             <div className="flex items-center gap-2">
               <label htmlFor="cuotas" className="text-sm text-stone-600 dark:text-stone-300">En</label>
               <select
@@ -311,7 +311,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             onChange={(e) => setNota(e.target.value)}
             placeholder="Nota (opcional)"
             maxLength={60}
-            className="min-w-0 flex-1 rounded-xl bg-stone-100 px-3 py-2.5 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            className="min-w-0 flex-1 rounded-xl bg-white px-3 py-2.5 text-base outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
           />
           <input
             type="date"
@@ -319,7 +319,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
             max={hoyISO()}
             onChange={(e) => e.target.value && setFecha(e.target.value)}
             aria-label="Fecha"
-            className="w-36 rounded-xl bg-stone-100 px-2 py-2.5 text-base outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            className="w-36 rounded-xl bg-white px-2 py-2.5 text-base outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
           />
         </div>
 
@@ -330,9 +330,9 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
               key={t}
               onClick={() => tecla(t)}
               aria-label={t === 'borrar' ? 'Borrar' : String(t)}
-              className="rounded-xl bg-stone-100 py-3 text-2xl font-medium text-stone-800 active:scale-95 active:bg-stone-200 dark:bg-stone-800 dark:text-stone-100 dark:active:bg-stone-700"
+              className="rounded-xl bg-white py-3 text-2xl font-medium text-stone-800 active:scale-95 active:bg-stone-200 dark:bg-stone-900 dark:text-stone-100 dark:active:bg-stone-700"
             >
-              {t === 'borrar' ? '⌫' : t}
+              {t === 'borrar' ? <span className="inline-grid place-items-center"><Iconos.borrar /></span> : t}
             </button>
           ))}
         </div>
@@ -352,7 +352,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
         ) : (
           <button
             onClick={() => guardar()}
-            className="w-full rounded-2xl bg-teal-700 py-4 text-lg font-semibold text-white active:scale-[0.98] active:bg-teal-800"
+            className="boton-morado w-full rounded-2xl py-4 text-lg font-semibold text-white active:scale-[0.98]"
           >
             {editando ? 'Guardar cambios' : 'Guardar'}
           </button>

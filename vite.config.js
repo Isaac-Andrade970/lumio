@@ -18,8 +18,8 @@ export default defineConfig({
         short_name: 'Lumio',
         description: 'Mis gastos, ingresos y ahorro',
         lang: 'es-CL',
-        theme_color: '#0f766e',
-        background_color: '#f5f5f4',
+        theme_color: '#2e1065',
+        background_color: '#f5f3ff',
         display: 'standalone', // se abre a pantalla completa, sin barra de Safari
         start_url: './',
         icons: [

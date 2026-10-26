@@ -47,8 +47,8 @@ export default function Movimientos({ movimientos, alEditar, alBorrar }) {
             onClick={() => setFiltro(valor)}
             className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${
               filtro === valor
-                ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
-                : 'bg-white text-stone-600 dark:bg-stone-900 dark:text-stone-300'
+                ? 'bg-teal-700 text-white'
+                : 'bg-white text-stone-700 dark:bg-stone-900 dark:text-stone-300'
             }`}
           >
             {etiqueta}
@@ -65,11 +65,11 @@ export default function Movimientos({ movimientos, alEditar, alBorrar }) {
               onClick={() => setTarjeta(t)}
               className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
                 tarjeta === t
-                  ? 'border-teal-600 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                  ? 'border-teal-700 bg-teal-700 text-white'
                   : 'border-stone-200 text-stone-500 dark:border-stone-700 dark:text-stone-400'
               }`}
             >
-              {t === 'todas' ? '💳 Todas las tarjetas' : t}
+              {t === 'todas' ? 'Todas las tarjetas' : t}
             </button>
           ))}
         </div>

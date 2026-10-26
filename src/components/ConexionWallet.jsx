@@ -27,7 +27,7 @@ export default function ConexionWallet({ conectada, alConectar, alDesconectar })
     return (
       <div className="flex items-center justify-between rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-800 dark:bg-teal-950 dark:text-teal-200">
         <span>
-          <span aria-hidden="true">💳</span> Pagos de Wallet: automáticos
+          Pagos de Wallet: automáticos
         </span>
         <button onClick={alDesconectar} className="text-xs font-medium underline">
           Desconectar
@@ -42,7 +42,7 @@ export default function ConexionWallet({ conectada, alConectar, alDesconectar })
         onClick={() => setAbierta(true)}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-teal-600 py-2.5 text-sm font-medium text-teal-700 active:bg-teal-50 dark:border-teal-400 dark:text-teal-300 dark:active:bg-teal-950"
       >
-        <span aria-hidden="true">💳</span> Conectar pagos de Wallet
+        Conectar pagos de Wallet
       </button>
     )
   }

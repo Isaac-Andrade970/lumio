@@ -3,19 +3,19 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, borrarMovimiento, restaurarMovimiento, importarMovimientos } from './db.js'
 import { leerArchivoWallet } from './lib/wallet.js'
 import { bandeja, leerClave, guardarClave } from './lib/bandeja.js'
-import { leerLinkNuevo } from './lib/calculos.js'
+import { leerLinkNuevo, resumenDelMes, gastosPorCategoria } from './lib/calculos.js'
+import { formatearPesos, hoyISO, mesDe, nombreMes } from './lib/formato.js'
 import { datosDeEjemplo } from './lib/ejemplo.js'
 import Inicio from './components/Inicio.jsx'
 import Movimientos from './components/Movimientos.jsx'
 import NuevoMovimiento from './components/NuevoMovimiento.jsx'
 import Ahorro from './components/Ahorro.jsx'
-import Analisis from './components/Analisis.jsx'
+import Analisis, { COLORES } from './components/Analisis.jsx'
+import { Cabecera, Hoja, BotonCabecera, DatoCabecera, Iconos } from './components/Marco.jsx'
 import Ajustes from './components/Ajustes.jsx'
 import Novedades from './components/Novedades.jsx'
 import { VERSION, versionVista, marcarVista } from './version.js'
 
-// Título que se muestra arriba según la pestaña activa
-const TITULOS = { inicio: 'Lumio', movimientos: 'Movimientos', ahorro: 'Ahorro', analisis: 'Análisis', ajustes: 'Ajustes' }
 
 export default function App() {
   const [pestana, setPestana] = useState('inicio')
@@ -140,100 +140,121 @@ export default function App() {
 
   if (movimientos === null) return null // cargando (toma milisegundos)
 
-  return (
-    <div className="mx-auto min-h-dvh max-w-md">
-      <header className="safe-top flex items-center justify-between px-4 pb-3">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          {TITULOS[pestana]}
-        </h1>
-        {pestana !== 'ajustes' && (
-          <button
-            onClick={() => setPestana('ajustes')}
-            aria-label="Ajustes"
-            className="grid size-10 place-items-center rounded-full text-xl text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800"
-          >
-            ⚙️
-          </button>
-        )}
-      </header>
+  const mes = mesDe(hoyISO())
+  const botonAjustes = (
+    <BotonCabecera etiqueta="Ajustes" onClick={() => setPestana('ajustes')}>
+      <Iconos.ajustes />
+    </BotonCabecera>
+  )
 
-      <main className="px-4 pb-32">
-        {pestana === 'inicio' && (
-          <Inicio
-            movimientos={movimientos}
-            alVerTodo={() => setPestana('movimientos')}
-            alCargarEjemplo={cargarEjemplo}
-            alEditar={abrirEdicion}
-            alAjustes={() => setPestana('ajustes')}
-          />
-        )}
-        {pestana === 'movimientos' && (
-          <Movimientos
-            movimientos={movimientos}
-            alEditar={abrirEdicion}
-            alBorrar={alBorrar}
-          />
-        )}
-        {pestana === 'ahorro' && <Ahorro />}
-        {pestana === 'analisis' && <Analisis movimientos={movimientos} />}
-        {pestana === 'ajustes' && (
-          <Ajustes
-            movimientos={movimientos}
-            wallet={
-              bandeja && {
-                conectada: Boolean(claveWallet),
-                alConectar: conectarWallet,
-                alDesconectar: desconectarWallet,
-              }
+  return (
+    <div className="min-h-dvh">
+      {pestana === 'inicio' && (
+        <Inicio
+          movimientos={movimientos}
+          alVerTodo={() => setPestana('movimientos')}
+          alCargarEjemplo={cargarEjemplo}
+          alEditar={abrirEdicion}
+          alAjustes={() => setPestana('ajustes')}
+          alAnalisis={() => setPestana('analisis')}
+        />
+      )}
+
+      {pestana === 'movimientos' && (
+        <>
+          <Cabecera subtitulo={nombreMes(mes)} titulo="Movimientos" accion={botonAjustes}>
+            <ResumenMes movimientos={movimientos} mes={mes} />
+          </Cabecera>
+          <Hoja>
+            <Movimientos movimientos={movimientos} alEditar={abrirEdicion} alBorrar={alBorrar} />
+          </Hoja>
+        </>
+      )}
+
+      {pestana === 'ahorro' && (
+        <>
+          <Cabecera subtitulo="Simula cuánto juntarías" titulo="Ahorro" accion={botonAjustes} />
+          <Hoja>
+            <Ahorro />
+          </Hoja>
+        </>
+      )}
+
+      {pestana === 'analisis' && (
+        <>
+          <Cabecera subtitulo={nombreMes(mes)} titulo="Análisis" accion={botonAjustes}>
+            <GastadoDelMes movimientos={movimientos} mes={mes} />
+          </Cabecera>
+          <Hoja>
+            <Analisis movimientos={movimientos} />
+          </Hoja>
+        </>
+      )}
+
+      {pestana === 'ajustes' && (
+        <>
+          <Cabecera
+            izquierda={
+              <BotonCabecera etiqueta="Volver" onClick={() => setPestana('inicio')}>
+                <Iconos.volver />
+              </BotonCabecera>
             }
-            alAviso={(texto) => mostrarAviso(texto, null)}
-            alVerNovedades={() => setVerNovedades(true)}
+            titulo="Ajustes"
           />
-        )}
-      </main>
+          <Hoja>
+            <Ajustes
+              movimientos={movimientos}
+              wallet={
+                bandeja && {
+                  conectada: Boolean(claveWallet),
+                  alConectar: conectarWallet,
+                  alDesconectar: desconectarWallet,
+                }
+              }
+              alAviso={(texto) => mostrarAviso(texto, null)}
+              alVerNovedades={() => setVerNovedades(true)}
+            />
+          </Hoja>
+        </>
+      )}
 
       {/* Aviso temporal con opción de deshacer */}
       {aviso && (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-28 z-10 mx-auto flex max-w-sm items-center justify-between rounded-2xl bg-stone-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
+          className="fixed inset-x-4 bottom-28 z-30 mx-auto flex max-w-sm items-center justify-between rounded-2xl bg-stone-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
         >
           <span>{aviso.texto}</span>
           {aviso.deshacer && (
-          <button
-            onClick={() => {
-              aviso.deshacer()
-              setAviso(null)
-            }}
-            className="font-semibold text-teal-300 dark:text-teal-700"
-          >
-            Deshacer
-          </button>
+            <button
+              onClick={() => {
+                aviso.deshacer()
+                setAviso(null)
+              }}
+              className="font-semibold text-teal-300 dark:text-teal-700"
+            >
+              Deshacer
+            </button>
           )}
         </div>
       )}
 
       {/* Barra de pestañas con el botón + al centro */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 border-t border-stone-200 bg-white/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
-        <div className="mx-auto grid max-w-md grid-cols-5 items-center pt-2">
-          <BotonPestana activa={pestana === 'inicio'} onClick={() => setPestana('inicio')} icono="🏠" texto="Inicio" />
-          <BotonPestana
-            activa={pestana === 'movimientos'}
-            onClick={() => setPestana('movimientos')}
-            icono="📋"
-            texto="Movimientos"
-          />
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-10 border-t border-stone-200 bg-white/95 backdrop-blur dark:border-stone-800 dark:bg-stone-950/95">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-start pt-2.5">
+          <BotonPestana activa={pestana === 'inicio'} onClick={() => setPestana('inicio')} icono={<Iconos.billetera />} texto="Billetera" />
+          <BotonPestana activa={pestana === 'movimientos'} onClick={() => setPestana('movimientos')} icono={<Iconos.lista />} texto="Movimientos" />
           <div className="flex justify-center">
             <button
               onClick={abrirHoja}
               aria-label="Nuevo movimiento"
-              className="-mt-6 grid size-16 place-items-center rounded-full bg-teal-700 text-4xl leading-none text-white shadow-lg shadow-teal-900/30 active:scale-95"
+              className="boton-morado grid size-12 place-items-center rounded-2xl text-white active:scale-95"
             >
-              +
+              <Iconos.mas />
             </button>
           </div>
-          <BotonPestana activa={pestana === 'ahorro'} onClick={() => setPestana('ahorro')} icono="🐷" texto="Ahorro" />
-          <BotonPestana activa={pestana === 'analisis'} onClick={() => setPestana('analisis')} icono="📊" texto="Análisis" />
+          <BotonPestana activa={pestana === 'ahorro'} onClick={() => setPestana('ahorro')} icono={<Iconos.ahorro />} texto="Ahorro" />
+          <BotonPestana activa={pestana === 'analisis'} onClick={() => setPestana('analisis')} icono={<Iconos.analisis />} texto="Análisis" />
         </div>
       </nav>
 
@@ -256,12 +277,42 @@ function BotonPestana({ activa, onClick, icono, texto }) {
     <button
       onClick={onClick}
       aria-current={activa ? 'page' : undefined}
-      className={`flex flex-col items-center gap-0.5 text-xs font-medium ${
-        activa ? 'text-teal-700 dark:text-teal-300' : 'text-stone-400'
+      className={`flex flex-col items-center gap-1 text-[11px] ${
+        activa ? 'font-semibold text-teal-700 dark:text-teal-300' : 'font-medium text-stone-500 dark:text-stone-400'
       }`}
     >
-      <span className={`text-xl ${activa ? '' : 'grayscale'}`} aria-hidden="true">{icono}</span>
+      {icono}
       {texto}
     </button>
+  )
+}
+
+// Gastos e ingresos del mes, en el encabezado de Movimientos
+function ResumenMes({ movimientos, mes }) {
+  const { ingresos, gastos } = resumenDelMes(movimientos, mes)
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      <DatoCabecera titulo="Gastos" valor={formatearPesos(gastos)} />
+      <DatoCabecera titulo="Ingresos" valor={formatearPesos(ingresos)} />
+    </div>
+  )
+}
+
+// Total gastado del mes y una barra dividida por categoría, en el encabezado de Análisis
+function GastadoDelMes({ movimientos, mes }) {
+  const porCategoria = gastosPorCategoria(movimientos, mes)
+  const total = porCategoria.reduce((suma, c) => suma + c.total, 0)
+  return (
+    <div>
+      <p className="text-sm text-teal-300">Gastado este mes</p>
+      <p className="text-[34px] leading-tight font-semibold tracking-tight tabular-nums">{formatearPesos(total)}</p>
+      {total > 0 && (
+        <div className="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden="true">
+          {porCategoria.map((c, i) => (
+            <span key={c.categoria} style={{ width: `${(c.total / total) * 100}%`, background: COLORES[i % COLORES.length] }} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
