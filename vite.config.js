@@ -13,6 +13,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // se actualiza sola cuando publicas cambios
       includeAssets: ['favicon-v5.png', 'apple-touch-icon-v5.png', 'logo.png'],
+      // Guarda también el lector de PDF (pdf.js) para importar cartolas sin internet
+      workbox: {
+        globPatterns: ['**/*.{js,mjs,css,html,png,svg}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
       manifest: {
         name: 'Lumio',
         short_name: 'Lumio',

@@ -71,7 +71,7 @@ export default function FormularioCuentas({ cuentas, sugeridas, alTerminar }) {
           />
           <input
             inputMode="numeric"
-            value={fila.saldo !== null ? formatearPesos(fila.saldo) : ''}
+            value={fila.saldo !== null ? formatearPesos(fila.saldo, { mostrar: true }) : ''}
             onChange={(e) => cambiar(i, { saldo: e.target.value.trim() === '' ? null : leerMonto(e.target.value) })}
             placeholder={fila.original ? 'Sin cambio' : 'Saldo hoy'}
             aria-label={`Saldo de hoy en ${fila.nombre || 'la cuenta'}`}

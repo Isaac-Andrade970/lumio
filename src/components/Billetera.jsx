@@ -39,16 +39,21 @@ export function useTarjetas(movimientos) {
   const deCreditos = creditos.map((config, k) => {
     const d = r.deudas[k]
     const resumen = resumenCredito(movimientos, config, hoy, cuotas)
+    // Saldo a favor (pagaste de más): se muestra en vez de una deuda de $0
+    const aFavor = d.monto === 0 && resumen.saldoFavor > 0
     return {
       clave: `credito-${config.nombre}`,
       nombre: config.nombre,
       tipo: 'Crédito',
-      rotulo: d.estimado
-        ? d.monto > 0 ? `Próximo estado · ${fechaCorta(d.fecha)}` : 'Sin deuda por ahora'
-        : `Por pagar · vence ${fechaCorta(d.fecha)}`,
-      monto: d.monto,
+      rotulo: aFavor
+        ? 'Saldo a favor'
+        : d.estimado
+          ? d.monto > 0 ? `Próximo estado · ${fechaCorta(d.fecha)}` : 'Sin deuda por ahora'
+          : `Por pagar · vence ${fechaCorta(d.fecha)}`,
+      monto: aFavor ? resumen.saldoFavor : d.monto,
       fondo: FONDO_CREDITO,
       credito: resumen,
+      config,
     }
   })
   return { lista: [...deCuentas, ...deCreditos], disponible: r.disponible, hayCuentas: cuentas.length > 0 }
@@ -113,10 +118,18 @@ export function datosDeTarjeta(t, movimientos, mes) {
       .map((c) => ({ ...c, quedan: restantesDe(c, r.mesBase) }))
       .filter((c) => c.quedan > 0)
       .sort((a, b) => b.monto - a.monto)
+    // Lo último que informó el banco (si importaste estados de cuenta)
+    const ultimo = (t.config?.estados ?? []).at(-1)
     return {
       datos: [
         { titulo: 'Usado este período', valor: formatearPesos(r.usadoActual) },
         { titulo: 'Deuda en cuotas', valor: formatearPesos(r.deudaCuotas), destacado: r.deudaCuotas > 0 },
+        ...(ultimo?.cupo
+          ? [
+              { titulo: `Cupo disponible (al ${fechaCorta(ultimo.hasta)})`, valor: formatearPesos(ultimo.cupo.disponible) },
+              { titulo: 'Tasa mensual', valor: `${String(t.config.tasaMensual ?? 0).replace('.', ',')}%` },
+            ]
+          : []),
       ],
       cuotas,
       ultimos,

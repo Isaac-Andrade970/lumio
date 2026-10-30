@@ -2,9 +2,23 @@
 //   1) cambia VERSION (y "version" en package.json con: npm version 0.5.0 --no-git-tag-version)
 //   2) agrega sus novedades al principio de NOVEDADES
 //   3) anótalas también en CHANGELOG.md
-export const VERSION = '0.5.0'
+export const VERSION = '0.6.0'
 
 export const NOVEDADES = [
+  {
+    version: '0.6.0',
+    fecha: '2026-10-29',
+    titulo: 'Cartolas, agenda y metas',
+    cambios: [
+      'Importa la cartola o el estado de cuenta en PDF (Banco de Chile y Banco Falabella), aunque tenga contraseña. Lumio revisa que los saldos cuadren y no duplica lo que llegó por Wallet.',
+      'Próximos pagos en tu billetera: gastos fijos, pago de la tarjeta y cuotas que terminan. Anota tus gastos fijos en Ajustes.',
+      'Metas de ahorro en Ahorro: cuánto llevas y cuánto apartar al mes.',
+      'Lumio aprende tus categorías: si cambias la de un comercio, la próxima compra ahí llega con esa.',
+      'Modo privado: toca el ojo (o tu saldo) para ocultar los montos.',
+      'Desliza un movimiento a la izquierda para borrarlo.',
+      'La tarjeta de crédito usa las fechas exactas y el saldo a favor de tu estado de cuenta.',
+    ],
+  },
   {
     version: '0.5.0',
     fecha: '2026-10-26',

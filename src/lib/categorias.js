@@ -10,6 +10,7 @@ export const CATEGORIAS = {
     { id: 'salud', nombre: 'Salud', emoji: '💊' },
     { id: 'compras', nombre: 'Compras', emoji: '🛍️' },
     { id: 'educacion', nombre: 'Educación', emoji: '📚' },
+    { id: 'banco', nombre: 'Banco', emoji: '🏦' },
     { id: 'otros-gasto', nombre: 'Otros', emoji: '📦' },
   ],
   ingreso: [

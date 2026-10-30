@@ -1,14 +1,18 @@
 import { useState } from 'react'
-import { formatearPesos, hoyISO, mesDe, nombreMes } from '../lib/formato.js'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db.js'
+import { formatearPesos, hoyISO, mesDe, nombreMes, fechaCorta } from '../lib/formato.js'
+import { proximosPagos, comprometidoDelMes } from '../lib/agenda.js'
 import FilaMovimiento from './FilaMovimiento.jsx'
 import { Cabecera, Hoja, BotonCabecera, Iconos } from './Marco.jsx'
 import { useTarjetas, PilaTarjetas, datosDeTarjeta } from './Billetera.jsx'
 import { leerUltimoRespaldo, diasDesdeRespaldo } from '../lib/respaldo.js'
 
 // Pantalla de inicio: tus tarjetas apiladas como en Wallet y el detalle de la que elijas
-export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar, alAjustes, alAnalisis }) {
+export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEditar, alAjustes, alAnalisis, privado, alPrivado, alAnotarFijo }) {
   const [elegida, setElegida] = useState(null)
   const tarjetas = useTarjetas(movimientos)
+  const fijos = useLiveQuery(() => db.fijos.toArray(), [], [])
 
   // Recordatorio: si tienes datos y pasaron más de 7 días (o nunca) desde el último respaldo
   const dias = diasDesdeRespaldo(leerUltimoRespaldo())
@@ -20,6 +24,13 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
   const lista = tarjetas.lista
   const actual = lista.find((t) => t.clave === elegida) ?? lista[0]
   const detalle = actual ? datosDeTarjeta(actual, movimientos, mes) : null
+  // Agenda: gastos fijos + pago de las tarjetas + cuotas que terminan
+  const agenda = proximosPagos({
+    fijos,
+    movimientos,
+    tarjetas: lista.filter((t) => t.credito).map((t) => ({ nombre: t.nombre, resumen: t.credito })),
+  })
+  const comprometido = comprometidoDelMes(agenda)
   const ultimosGenerales = [...movimientos]
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.creado ?? 0) - (a.creado ?? 0))
     .slice(0, 5)
@@ -30,15 +41,23 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
         izquierda={
           <>
             <img src="./icon-192-v5.png" alt="Lumio" width="42" height="42" className="shrink-0 rounded-xl shadow-md shadow-black/30" />
-            <div>
-              <p className="text-sm text-teal-300">Disponible</p>
-              <p className={`text-[30px] leading-tight font-semibold tracking-tight tabular-nums ${tarjetas.disponible < 0 ? 'text-amber-300' : ''}`}>
+            {/* Tocar el monto activa el modo privado (oculta todos los montos) */}
+            <button onClick={alPrivado} aria-pressed={privado} aria-label={privado ? 'Mostrar montos' : 'Ocultar montos'} className="text-left">
+              <span className="block text-sm text-teal-300">Disponible</span>
+              <span className={`block text-[30px] leading-tight font-semibold tracking-tight tabular-nums ${tarjetas.disponible < 0 && !privado ? 'text-amber-300' : ''}`}>
                 {formatearPesos(tarjetas.disponible)}
-              </p>
-            </div>
+              </span>
+            </button>
           </>
         }
-        accion={<BotonCabecera etiqueta="Ajustes" onClick={alAjustes}><Iconos.ajustes /></BotonCabecera>}
+        accion={
+          <div className="flex gap-2">
+            <BotonCabecera etiqueta={privado ? 'Mostrar montos' : 'Ocultar montos'} onClick={alPrivado}>
+              {privado ? <Iconos.ojoCerrado /> : <Iconos.ojo />}
+            </BotonCabecera>
+            <BotonCabecera etiqueta="Ajustes" onClick={alAjustes}><Iconos.ajustes /></BotonCabecera>
+          </div>
+        }
       >
         {lista.length > 0 ? (
           <PilaTarjetas tarjetas={lista} elegida={actual.clave} alElegir={setElegida} />
@@ -62,6 +81,24 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
               <span>{dias === null ? 'Aún no respaldas tus datos.' : `Tu último respaldo fue hace ${dias} días.`}</span>
               <span className="shrink-0 font-semibold">Respaldar</span>
             </button>
+          )}
+
+          {agenda.length > 0 && (
+            <section className="rounded-[18px] bg-white px-4 pt-3 pb-1 dark:bg-stone-900">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Próximos pagos</h2>
+                {comprometido > 0 && (
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Comprometido este mes <span className="font-semibold text-stone-900 dark:text-stone-100">{formatearPesos(comprometido)}</span>
+                  </p>
+                )}
+              </div>
+              <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+                {agenda.slice(0, 6).map((p) => (
+                  <PagoAgenda key={p.clave} pago={p} alAnotar={() => alAnotarFijo(p.fijo)} />
+                ))}
+              </ul>
+            </section>
           )}
 
           {detalle && (
@@ -152,5 +189,42 @@ export default function Inicio({ movimientos, alVerTodo, alCargarEjemplo, alEdit
         </div>
       </Hoja>
     </>
+  )
+}
+
+// Una fila de la agenda: fecha, qué es y cuánto. Los gastos fijos se pueden anotar con un toque.
+function PagoAgenda({ pago, alAnotar }) {
+  const [, mes, dia] = pago.fecha.split('-')
+  const nombreMesCorto = fechaCorta(pago.fecha).split(' de ')[1]?.slice(0, 3) ?? mes
+  const contenido = (
+    <>
+      <span className={`w-10 shrink-0 text-center ${pago.atrasado ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100'}`}>
+        <span className="block text-lg leading-none font-bold">{Number(dia)}</span>
+        <span className="block text-[11px] font-semibold uppercase">{nombreMesCorto}</span>
+      </span>
+      <span className="min-w-0 flex-1 border-l border-stone-200 pl-3 dark:border-stone-700">
+        <span className="block truncate text-sm font-medium text-stone-900 dark:text-stone-100">{pago.titulo}</span>
+        <span className="block truncate text-xs text-stone-500 dark:text-stone-400">
+          {pago.tipo === 'finCuotas' ? `Desde el mes siguiente se liberan ${formatearPesos(pago.liberado)} al mes` : pago.detalle}
+          {pago.atrasado && ' · Atrasado'}
+          {pago.tipo === 'fijo' && ' · Toca para anotarlo'}
+        </span>
+      </span>
+      {pago.monto != null && (
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+          {pago.estimado ? '≈ ' : ''}
+          {formatearPesos(pago.monto)}
+        </span>
+      )}
+    </>
+  )
+  return (
+    <li>
+      {pago.tipo === 'fijo' ? (
+        <button onClick={alAnotar} className="flex w-full items-center gap-3 py-2.5 text-left">{contenido}</button>
+      ) : (
+        <div className="flex items-center gap-3 py-2.5">{contenido}</div>
+      )}
+    </li>
   )
 }

@@ -31,6 +31,8 @@ describe('respaldo sin contraseña', () => {
       cuentas: 1,
       creditos: 1,
       cuotas: 1,
+      fijos: 0, // respaldos de antes de la v0.6 no traen estas tablas
+      metas: 0,
     })
   })
 

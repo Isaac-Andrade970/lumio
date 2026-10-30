@@ -5,7 +5,8 @@ import { ordenarPorUso, tarjetasUsadas, unirTarjetas } from '../lib/calculos.js'
 import { mismaTarjeta, primerMesDePago } from '../lib/credito.js'
 import { formatearPesos, hoyISO, leerMonto, nombreMes, sumarMeses } from '../lib/formato.js'
 import { Iconos } from './Marco.jsx'
-import { db, agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
+import { categoriaAprendida, reglaDesde } from '../lib/reglas.js'
+import { db, guardarRegla, agregarMovimiento, actualizarMovimiento, esPosibleDuplicado } from '../db.js'
 
 const OPCIONES_CUOTAS = [1, 2, 3, 4, 6, 10, 12, 18, 24, 36]
 
@@ -28,6 +29,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
   // Tus tarjetas de crédito configuradas en Análisis (aparecen aunque todavía no las hayas usado)
   const creditos = useLiveQuery(() => db.creditos.toArray(), [], [])
   const cuentas = useLiveQuery(() => db.cuentas.toArray(), [], [])
+  const reglas = useLiveQuery(() => db.reglas.toArray(), [], [])
 
   // Gasto: "Pagado con" = tarjetas ya usadas + tarjetas de crédito + tus cuentas + Efectivo
   // Ingreso: "Recibido en" = tus cuentas (débito, efectivo); nunca una tarjeta de crédito
@@ -86,7 +88,8 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
     const mov = {
       tipo,
       monto,
-      categoria: esTransferencia ? 'transferencia' : (categoria ?? categoriaOtros(tipo)),
+      // Sin categoría elegida: la que Lumio aprendió para este comercio, o "Otros"
+      categoria: esTransferencia ? 'transferencia' : (categoria ?? categoriaAprendida(nota, reglas, tipo) ?? categoriaOtros(tipo)),
       destino: esTransferencia ? destino.trim() : '',
       fecha,
       nota: nota.trim(),
@@ -94,7 +97,11 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
       cuotas: enCuotas ? cuotas : 1,
       valorCuota: enCuotas ? cuotaCalculada : 0,
       origen: inicial?.origen ?? 'manual',
+      ...(inicial?.fijoId ? { fijoId: inicial.fijoId } : {}), // anotado desde un gasto fijo de la agenda
     }
+    // Si elegiste la categoría a mano, Lumio la aprende para la próxima vez que aparezca este comercio
+    const regla = categoria ? reglaDesde(mov) : null
+    if (regla) await guardarRegla(regla)
     if (editando) {
       await actualizarMovimiento(inicial.id, mov)
       return alGuardar({ ...mov, id: inicial.id }, inicial) // "inicial" = cómo estaba antes
@@ -142,7 +149,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
         <div className="mb-1 text-center">
           <p className={`text-5xl font-semibold tracking-tight tabular-nums ${monto ? '' : 'text-white/35'}`}>
             {tipo === 'ingreso' && monto ? '+' : ''}
-            {formatearPesos(monto)}
+            {formatearPesos(monto, { mostrar: true })}
           </p>
           <p className="h-5 text-sm text-red-300" role="alert">{error}</p>
         </div>
@@ -287,7 +294,7 @@ export default function NuevoMovimiento({ inicial, movimientos, alCerrar, alGuar
                   <span className="text-sm text-stone-600 dark:text-stone-300">de</span>
                   <input
                     inputMode="numeric"
-                    value={formatearPesos(cuotaCalculada)}
+                    value={formatearPesos(cuotaCalculada, { mostrar: true })}
                     onChange={(e) => setValorCuota(leerMonto(e.target.value))}
                     aria-label="Valor de cada cuota"
                     className="min-w-0 flex-1 rounded-lg bg-white px-2 py-1.5 text-base tabular-nums outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-700 dark:text-white"

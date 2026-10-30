@@ -1,4 +1,5 @@
 import Dexie from 'dexie'
+import { TABLAS } from './lib/respaldo.js'
 
 // Base de datos local en el navegador (IndexedDB), manejada con Dexie.
 // Todo queda guardado en el teléfono: nada se envía a internet.
@@ -48,7 +49,20 @@ db.version(6).stores({
   copias: 'id',
 })
 
-const TABLAS_RESPALDO = ['movimientos', 'cuentas', 'creditos', 'cuotas']
+// Versión 7 (v0.6): categorías aprendidas, gastos fijos, metas de ahorro y preferencias (ej. tu nombre como sale en el banco)
+db.version(7).stores({
+  movimientos: '++id, fecha, tipo, categoria, origen, externoId',
+  creditos: 'nombre',
+  cuotas: '++id, tarjeta',
+  cuentas: 'nombre',
+  copias: 'id',
+  reglas: 'clave',
+  fijos: '++id',
+  metas: '++id',
+  preferencias: 'clave',
+})
+
+const TABLAS_RESPALDO = TABLAS
 
 // Todos tus datos, para el respaldo
 export async function exportarDatos() {
@@ -153,4 +167,102 @@ export async function esPosibleDuplicado({ tipo, monto, categoria }) {
   return recientes.some(
     (m) => m.creado > haceUnMinuto && m.tipo === tipo && m.monto === monto && m.categoria === categoria,
   )
+}
+
+// ---- v0.6 ----
+
+// Categoría aprendida para un comercio: { clave: 'uber trip', categoria: 'transporte', tipo: 'gasto' }
+export function guardarRegla(regla) {
+  return db.reglas.put({ ...regla, actualizado: Date.now() })
+}
+
+// Gasto fijo: { id, nombre, monto, dia, categoria, medioPago }
+export function guardarFijo(fijo) {
+  return db.fijos.put(fijo)
+}
+
+export function borrarFijo(id) {
+  return db.fijos.delete(id)
+}
+
+// Meta de ahorro: { id, nombre, objetivo, mesLimite: 'AAAA-MM', aportes: [{ monto, fecha }], creado }
+export function guardarMeta(meta) {
+  return db.metas.put(meta)
+}
+
+export function borrarMeta(id) {
+  return db.metas.delete(id)
+}
+
+// Preferencias sueltas: { clave: 'titular', valor: 'Juan Pérez Soto' }
+export async function leerPreferencia(clave, porDefecto = '') {
+  return (await db.preferencias.get(clave))?.valor ?? porDefecto
+}
+
+export function guardarPreferencia(clave, valor) {
+  return db.preferencias.put({ clave, valor })
+}
+
+// Guarda lo que elegiste en la vista previa de una cartola o estado de cuenta.
+// Todo en una transacción: si algo falla, no queda nada a medias.
+// plan: lo que devolvió prepararImportacion · elegidas: propuestas con incluir = true
+export async function aplicarImportacion(plan, elegidas, { ajustarSaldo = false } = {}) {
+  let agregados = 0
+  await db.transaction('rw', [db.movimientos, db.creditos, db.cuotas, db.cuentas], async () => {
+    const ahora = Date.now()
+    const nuevos = elegidas.filter((p) => p.tipo === 'movimiento').map((p) => ({ ...p.datos, creado: ahora }))
+    if (nuevos.length) {
+      const existentes = await db.movimientos.where('externoId').anyOf(nuevos.map((m) => m.externoId)).toArray()
+      const ya = new Set(existentes.map((m) => m.externoId))
+      const porAgregar = nuevos.filter((m) => !ya.has(m.externoId))
+      await db.movimientos.bulkAdd(porAgregar)
+      agregados += porAgregar.length
+    }
+
+    for (const p of elegidas.filter((x) => x.tipo === 'actualizarMovimiento')) {
+      await db.movimientos.update(p.datos.id, p.datos.cambios)
+    }
+
+    for (const p of elegidas.filter((x) => x.tipo === 'cuota')) {
+      if (p.estado === 'completar') await db.cuotas.update(p.datos.id, p.datos.cambios)
+      else await db.cuotas.add(p.datos)
+    }
+
+    // Pagos y configuración de tarjetas
+    const pagosPorTarjeta = {}
+    for (const p of elegidas.filter((x) => x.tipo === 'pago')) {
+      ;(pagosPorTarjeta[p.datos.tarjeta] ??= []).push(p)
+    }
+    const tarjetas = new Set(Object.keys(pagosPorTarjeta))
+    if (plan.cambiosConfig) tarjetas.add(plan.destino)
+    for (const nombre of tarjetas) {
+      const base = (await db.creditos.get(nombre)) ?? plan.configBase ?? { nombre, diaCierre: 20, diaPago: 5, tasaMensual: 0, comision: 0 }
+      let pagos = [...(base.pagos ?? [])]
+      for (const p of pagosPorTarjeta[nombre] ?? []) {
+        if (p.estado === 'completar' && p.datos.existente) {
+          pagos = pagos.map((pg) => (pg === p.datos.existente || (pg.monto === p.datos.existente.monto && pg.momento === p.datos.existente.momento) ? { ...pg, cuenta: p.datos.pago.cuenta } : pg))
+        } else {
+          pagos.push(p.datos.pago)
+        }
+      }
+      const cambios = nombre === plan.destino && plan.cambiosConfig ? plan.cambiosConfig : {}
+      await db.creditos.put({ ...base, ...cambios, pagos })
+    }
+
+    // Cuenta: últimos dígitos (para reconocerla sola la próxima vez) y saldo final de la cartola
+    if (plan.digitos || (ajustarSaldo && plan.ajusteSaldo)) {
+      const nombre = plan.ajusteSaldo?.cuenta ?? plan.digitos.cuenta
+      const cuenta = await db.cuentas.get(nombre)
+      if (cuenta) {
+        const cambios = {}
+        if (plan.digitos) cambios.digitos = plan.digitos.digitos
+        if (ajustarSaldo && plan.ajusteSaldo) {
+          // Desde el cierre de la cartola, Lumio parte del saldo que informa el banco
+          Object.assign(cambios, { saldoInicial: plan.ajusteSaldo.saldo, fechaSaldo: plan.ajusteSaldo.fecha, momentoSaldo: Date.now() + 1 })
+        }
+        await db.cuentas.put({ ...cuenta, ...cambios })
+      }
+    }
+  })
+  return agregados
 }

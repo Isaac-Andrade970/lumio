@@ -76,10 +76,27 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
 
       {/* 1) Estado de cuenta ya cerrado: lo que hay que pagar */}
       <div className="rounded-2xl bg-stone-50 p-4 dark:bg-stone-800">
-        <p className="text-sm text-stone-500 dark:text-stone-400">Estado de cuenta</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          Estado de cuenta{r.oficial ? ' · según tu banco' : ''}
+        </p>
         <p className="text-3xl font-semibold tracking-tight text-stone-900 tabular-nums dark:text-stone-50">
           {formatearPesos(r.aPagar)}
         </p>
+        {r.oficial && r.saldoFavor > 0 && (
+          <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            Saldo a favor {formatearPesos(r.saldoFavor)}: pagaste de más y se descuenta del próximo estado de cuenta.
+          </p>
+        )}
+        {!r.oficial && r.favorAplicado > 0 && (
+          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+            Ya descuenta {formatearPesos(r.favorAplicado)} de tu saldo a favor{r.saldoFavor > 0 ? ` (te quedan ${formatearPesos(r.saldoFavor)} a favor)` : ''}.
+          </p>
+        )}
+        {r.estadoOficial?.cupo && (
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+            Cupo disponible {formatearPesos(r.estadoOficial.cupo.disponible)} de {formatearPesos(r.estadoOficial.cupo.total)}
+          </p>
+        )}
         <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
           Compras del {fechaCorta(r.periodoAnterior.desde)} al {fechaCorta(r.periodoAnterior.hasta)}: {formatearPesos(r.compras)}
           {r.cuotas > 0 && ` · Cuotas: ${formatearPesos(r.cuotas)}`}
@@ -93,7 +110,9 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
 
         {/* Estado del pago */}
         <div className="mt-3 text-sm">
-          {r.pagado ? (
+          {r.aPagar === 0 ? (
+            <p className="font-medium text-teal-700 dark:text-teal-300">Nada que pagar este mes</p>
+          ) : r.pagado ? (
             <p className="font-medium text-teal-700 dark:text-teal-300">✓ Pagado {r.pagadoMonto > 0 && `(${formatearPesos(r.pagadoMonto)})`}</p>
           ) : r.pagadoMonto > 0 ? (
             <p className="text-stone-700 dark:text-stone-300">
@@ -121,7 +140,7 @@ function ResumenCredito({ config, movimientos, cuotas, alEditar }) {
           <div className="flex items-center gap-2">
             <input
               inputMode="numeric"
-              value={montoPago ? formatearPesos(montoPago) : ''}
+              value={montoPago ? formatearPesos(montoPago, { mostrar: true }) : ''}
               placeholder={formatearPesos(r.pendiente)}
               onChange={(e) => setMontoPago(Math.min(leerMonto(e.target.value), r.pendiente))}
               aria-label="Cuánto pagaste"
@@ -273,7 +292,7 @@ function CuotasCredito({ tarjeta, cuotas, mesBase, deuda }) {
           <div className="grid grid-cols-2 gap-2">
             <input
               inputMode="numeric"
-              value={monto ? formatearPesos(monto) : ''}
+              value={monto ? formatearPesos(monto, { mostrar: true }) : ''}
               onChange={(e) => setMonto(leerMonto(e.target.value))}
               placeholder="Cuota mensual"
               aria-label="Cuota mensual"
@@ -411,7 +430,7 @@ function FormularioCredito({ inicial, tarjetas, alTerminar }) {
           <input
             id="cr-comision"
             inputMode="numeric"
-            value={comision ? formatearPesos(comision) : ''}
+            value={comision ? formatearPesos(comision, { mostrar: true }) : ''}
             onChange={(e) => setComision(leerMonto(e.target.value))}
             placeholder="$0"
             className={campo}

@@ -2,6 +2,30 @@
 
 Todos los cambios importantes de Lumio. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [versionado semántico](https://semver.org/lang/es/).
 
+## [0.6.0] - 2026-10-29 · Cartolas, agenda y metas
+
+### Agregado
+- Importar cartolas y estados de cuenta en PDF (con o sin contraseña) con pdf.js, leídos en el teléfono:
+  - Cartola de cuenta corriente Banco de Chile y Banco Falabella; estado de cuenta de tarjeta de crédito Banco de Chile.
+  - Verificación con saldos diarios, saldo final y totales de control (A+B+C+D+E+F+G) antes de importar.
+  - Vista previa con estados *Nuevo / Ya lo tienes / Se completa / Se omite*, cuenta de destino y categorías editables.
+  - Sin duplicados: huella por fila, gastos que ya llegaron por Wallet (mismo monto y cuenta, ±3 días), la misma transferencia vista en dos cartolas y pagos de tarjeta ya registrados.
+  - Clasificación: pago de tarjeta (no es gasto), transferencias entre cuentas propias (por el nombre del titular), transferencias de o para otras personas.
+  - Estado de cuenta: cuotas con sus meses reales desde el N° de cuota, compras nuevas en cuotas con primera cuota el mes siguiente, comisión a la configuración, períodos exactos, tasa y saldo a favor.
+  - Ajuste opcional del saldo de la cuenta con el saldo final de la cartola más reciente.
+- Próximos pagos en Inicio: gastos fijos, estado de cuenta de cada tarjeta y cuotas que terminan, con lo comprometido del mes. Los gastos fijos se anotan con un toque.
+- Gastos fijos en Ajustes.
+- Metas de ahorro en Ahorro: avance, cuánto falta y cuánto apartar al mes.
+- Categorías aprendidas: al elegir una categoría para un comercio, los próximos pagos de Wallet, cartolas y anotaciones de ese comercio llegan con esa categoría.
+- Modo privado (ojo o tocar el saldo) que oculta los montos y se recuerda en el teléfono.
+- Deslizar un movimiento a la izquierda para borrarlo (hasta el fondo lo borra de una vez).
+- README con capturas, GIF y arquitectura; GitHub Actions corre las pruebas y el build en cada push.
+
+### Cambiado
+- La tarjeta de crédito usa las fechas exactas de cierre y pago de los estados de cuenta importados y el saldo a favor oficial, que se descuenta de los meses siguientes.
+- Base de datos versión 7 (tablas `reglas`, `fijos`, `metas`, `preferencias`); el respaldo las incluye.
+- pdf.js queda guardado para funcionar sin internet.
+
 ## [0.5.0] - 2026-10-26 · Nuevo diseño
 
 ### Agregado

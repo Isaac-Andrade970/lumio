@@ -1,98 +1,96 @@
-# Lumio ✨
+# Lumio
 
-App personal de finanzas para iPhone, hecha como **PWA** (web app instalable). Registra gastos e ingresos, los agrupa por categoría y (próximamente) proyecta cuánto puedes ahorrar.
+[![Tests](https://github.com/Isaac-Andrade970/lumio/actions/workflows/tests.yml/badge.svg)](https://github.com/Isaac-Andrade970/lumio/actions/workflows/tests.yml)
+![Versión](https://img.shields.io/badge/versión-0.6.0-7c3aed)
+![PWA](https://img.shields.io/badge/PWA-instalable%20en%20iPhone-6d28d9)
 
-**Privacidad primero:** todos los datos se guardan solo en tu teléfono (IndexedDB). No hay servidor, cuentas ni sincronización. Funciona sin internet.
+**Tus gastos, en un solo lugar.** App personal de finanzas para iPhone hecha como PWA (web app instalable): registra gastos e ingresos, lleva el saldo real de cada cuenta y la deuda de la tarjeta de crédito, captura sola los pagos de Apple Pay e importa las cartolas del banco en PDF.
 
-## Funcionalidades
+Es **local-first**: todos los datos viven en el teléfono (IndexedDB). No hay cuentas de usuario ni servidor con tus finanzas.
 
-- ✅ Registro rápido de gastos e ingresos con teclado numérico propio
-- ✅ Categorías ordenadas según cuánto las usas
-- ✅ Resumen del mes: saldo, ingresos, gastos y top 3 categorías
-- ✅ Lista de movimientos por día, con búsqueda y filtros
-- ✅ Deshacer al guardar o borrar
-- ✅ Aviso de posible duplicado
-- ✅ Link para automatizar con Atajos de iOS: `#nuevo?monto=5990&comercio=Starbucks`
-- ✅ Datos de ejemplo para probar la app
-- 🔜 Gráficos y análisis mensual
-- 🔜 Simulador de ahorro y metas
-- 🔜 Importar cartola del banco, respaldo y Face ID
+<p align="center">
+  <img src="docs/capturas/billetera.gif" alt="Billetera con tarjetas apiladas" width="300">
+</p>
+
+| Billetera | Tarjeta de crédito | Movimientos |
+|---|---|---|
+| <img src="docs/capturas/billetera.png" width="240"> | <img src="docs/capturas/credito.png" width="240"> | <img src="docs/capturas/movimientos.png" width="240"> |
+| **Nuevo gasto** | **Ahorro y metas** | **Análisis** |
+| <img src="docs/capturas/nuevo.png" width="240"> | <img src="docs/capturas/ahorro.png" width="240"> | <img src="docs/capturas/analisis.png" width="240"> |
+
+<sub>Capturas con datos de ejemplo.</sub>
+
+## Qué hace
+
+- **Billetera estilo Wallet**: cuentas, efectivo y tarjetas de crédito apiladas; al tocar una se ve su detalle.
+- **Saldo real por cuenta**: parte del saldo que anotas y suma o resta cada movimiento, transferencia y pago de tarjeta.
+- **Tarjeta de crédito**: estado de cuenta, fecha de pago, cuotas comprometidas, pagos parciales con interés estimado y saldo a favor.
+- **Pagos de Apple Pay automáticos**: un Atajo de iOS manda cada pago a una bandeja en Supabase; Lumio los importa al abrirse y los borra de la nube.
+- **Importar cartolas y estados de cuenta en PDF** (Banco de Chile y Banco Falabella), incluso con contraseña. Se leen en el teléfono, se verifican contra los saldos del banco y no duplican lo que ya llegó por Wallet.
+- **Próximos pagos**: gastos fijos, pago de la tarjeta y cuotas que terminan, con lo comprometido del mes.
+- **Metas de ahorro** con cuánto apartar al mes, y simulador con interés.
+- **Aprende tus categorías**: si cambias la de un comercio, la próxima compra ahí llega con esa.
+- **Modo privado** para ocultar los montos, **deslizar para borrar**, deshacer, respaldo cifrado y modo oscuro.
+
+## Arquitectura
+
+```
+iPhone (Apple Pay) ──Atajo──▶ Supabase (bandeja, RLS + funciones con clave)
+                                     │  al abrir la app
+                                     ▼
+PDF del banco ──pdf.js──▶  Lumio (React PWA) ◀──▶ IndexedDB (Dexie) en el teléfono
+                                     │
+                              Vercel (solo sirve la app)
+```
+
+- **Local-first**: Dexie sobre IndexedDB; la app funciona sin internet (service worker con Workbox).
+- **Bandeja de Wallet**: tabla con RLS sin políticas; solo se accede por funciones `SECURITY DEFINER` que exigen una clave. Las filas se borran apenas llegan al teléfono (primero se guarda local, después se borra en la nube).
+- **Importador de PDF**: pdf.js entrega cada texto con su posición; lectores puros (`src/lib/lectores.js`) arman las filas por columnas, unen descripciones partidas en dos líneas y verifican con los saldos y totales de control del banco antes de proponer nada.
+- **Lógica separada de la interfaz**: todo el cálculo vive en `src/lib/` como funciones puras con pruebas (períodos de facturación, cuotas, saldos, importación, reglas de categorías).
 
 ## Tecnologías
 
-React · Vite · Tailwind CSS · Dexie.js (IndexedDB) · vite-plugin-pwa · Vitest
+React 19 · Vite · Tailwind CSS 4 · Dexie (IndexedDB) · vite-plugin-pwa · pdf.js · Recharts · Supabase · Vitest · GitHub Actions · Vercel
 
-## Cómo correrlo en Windows
+## Correrlo localmente
 
-### 1. Instala lo necesario (una sola vez)
-
-- **Node.js** (versión LTS): https://nodejs.org
-- **Git**: https://git-scm.com/download/win
-- **VS Code**: https://code.visualstudio.com
-
-### 2. Abre la carpeta del proyecto
-
-Descomprime el zip, abre la carpeta `lumio` en VS Code y abre la terminal (menú *Terminal → New Terminal*).
-
-### 3. Instala las dependencias y arranca
+Requisitos: Node.js 22 y Git.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Verás algo como:
-
-```
-➜  Local:   http://localhost:5173/
-➜  Network: http://192.168.1.15:5173/
-```
-
-Abre la dirección **Local** en el navegador del PC para verla.
-
-### 4. Pruébala en tu iPhone (misma red WiFi)
-
-Abre en Safari del iPhone la dirección **Network** (la que empieza con `192.168...`).
-Si no carga, Windows probablemente está bloqueando la conexión: acepta el aviso del Firewall o permite Node.js en *Firewall de Windows → Permitir una aplicación*.
-
-> En modo desarrollo funciona todo excepto la instalación como app y el modo sin conexión, que necesitan HTTPS. Para eso está el paso 5.
-
-### 5. Publícala gratis e instálala en el iPhone
-
-1. Crea un repositorio en GitHub y sube el proyecto:
-   ```bash
-   git remote add origin https://github.com/TU_USUARIO/lumio.git
-   git push -u origin main
-   ```
-2. Entra a https://vercel.com con tu cuenta de GitHub → *Add New Project* → elige `lumio` → *Deploy*. Vercel detecta Vite solo.
-3. Abre el link que te da Vercel en **Safari** del iPhone → botón **Compartir** → **Agregar a inicio**.
-
-Cada vez que hagas `git push`, Vercel publica la nueva versión y la app se actualiza sola.
-
-## Comandos
+Abre `http://localhost:5173`. Para la captura de Apple Pay, copia `.env.example` a `.env.local` con la URL y la llave pública de tu proyecto de Supabase y corre `supabase/bandeja_wallet.sql` (cambia la clave de ejemplo antes).
 
 | Comando | Qué hace |
 |---|---|
-| `npm run dev` | Servidor de desarrollo (se recarga al guardar) |
-| `npm test` | Corre las pruebas de los cálculos |
-| `npm run build` | Genera la versión final en `dist/` |
-| `npm run preview` | Sirve la versión final localmente |
+| `npm run dev` | Servidor de desarrollo |
+| `npm test` | Pruebas (Vitest) |
+| `npm run build` | Versión final en `dist/` |
+| `npm run preview` | Sirve la versión final |
 
 ## Estructura
 
 ```
 src/
-├── App.jsx                  # Pantalla principal, pestañas y botón +
-├── db.js                    # Base de datos local (Dexie)
-├── components/
-│   ├── Inicio.jsx           # Resumen del mes
-│   ├── Movimientos.jsx      # Lista agrupada por día
-│   ├── NuevoMovimiento.jsx  # Hoja para anotar un gasto/ingreso
-│   └── FilaMovimiento.jsx   # Una fila de la lista
-└── lib/                     # Lógica sin pantallas (reutilizable)
-    ├── calculos.js          # Totales, agrupaciones, link de Atajos
-    ├── calculos.test.js     # Pruebas
-    ├── categorias.js
-    ├── formato.js           # Pesos chilenos y fechas
-    └── ejemplo.js           # Datos de ejemplo
+├── App.jsx                 # Pestañas, sincronización con Wallet, modo privado
+├── db.js                   # Base de datos local (Dexie) y escritura de importaciones
+├── components/             # Pantallas (Inicio, Movimientos, Ahorro, Análisis, Ajustes, Importar…)
+└── lib/                    # Lógica pura con pruebas
+    ├── credito.js          # Períodos, estado de cuenta, cuotas, saldo a favor
+    ├── cuentas.js          # Saldo real por cuenta
+    ├── lectores.js         # Lectura de cartolas y estados de cuenta
+    ├── importar.js         # Clasificación y detección de duplicados
+    ├── reglas.js           # Categorías aprendidas
+    ├── agenda.js · metas.js · respaldo.js · wallet.js · bandeja.js · calculos.js
+    └── *.test.js
 ```
+
+## Privacidad
+
+- Los PDF se leen en el navegador y no se guardan; solo se guardan los movimientos que eliges.
+- Nada de tus finanzas pasa por Vercel ni GitHub. Supabase solo ve cada pago de Wallet unos segundos.
+- Las pruebas usan únicamente datos inventados.
+
+Cambios por versión en [CHANGELOG.md](CHANGELOG.md).

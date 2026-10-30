@@ -23,28 +23,47 @@ function cierreDelMes(anio, mes, diaCierre) {
   return aISO(fechaConDia(base.getFullYear(), base.getMonth(), diaCierre))
 }
 
+function diaAnterior(fechaISO) {
+  const [a, m, d] = fechaISO.split('-').map(Number)
+  return aISO(new Date(a, m - 1, d - 1, 12))
+}
+
+// Período de facturación que contiene una fecha.
+// Si importaste estados de cuenta, se usan sus fechas exactas (el banco las mueve cada mes);
+// si no, se calcula con el día de cierre de la configuración.
+// periodos: [{ desde, hasta, pagarHasta? }] sacados de los estados de cuenta
+function periodoQueContiene(fecha, diaCierre, periodos) {
+  const guardado = periodos.find((p) => p.desde <= fecha && fecha <= p.hasta)
+  if (guardado) return { desde: guardado.desde, hasta: guardado.hasta }
+
+  const [a, m] = fecha.split('-').map(Number)
+  let mesCierre = m - 1 // mes (0-11) del próximo cierre
+  if (fecha > cierreDelMes(a, mesCierre, diaCierre)) mesCierre += 1 // ya pasó el cierre de este mes
+  let desde = diaSiguiente(cierreDelMes(a, mesCierre - 1, diaCierre))
+  let hasta = cierreDelMes(a, mesCierre, diaCierre)
+  // Que el período calculado no se monte con uno guardado de al lado
+  for (const p of periodos) {
+    if (p.hasta >= desde && p.hasta < fecha) desde = diaSiguiente(p.hasta)
+    if (p.desde > fecha && p.desde <= hasta) hasta = diaAnterior(p.desde)
+  }
+  return { desde, hasta }
+}
+
 // Devuelve los dos períodos de facturación respecto de "hoy":
 //   anterior: el último ya cerrado (es lo que se paga ahora)
 //   actual:   el que está en curso (se facturará en el próximo cierre)
 // Cada uno es { desde, hasta } con ambas fechas incluidas.
-export function periodosCredito(hoy, diaCierre) {
-  const [a, m] = hoy.split('-').map(Number)
-  let mesCierre = m - 1 // mes (0-11) del próximo cierre
-  if (hoy > cierreDelMes(a, mesCierre, diaCierre)) mesCierre += 1 // ya pasó el cierre de este mes
-
-  const cierreActual = cierreDelMes(a, mesCierre, diaCierre)
-  const cierreAnterior = cierreDelMes(a, mesCierre - 1, diaCierre)
-  const cierreAntesDelAnterior = cierreDelMes(a, mesCierre - 2, diaCierre)
-
-  return {
-    actual: { desde: diaSiguiente(cierreAnterior), hasta: cierreActual },
-    anterior: { desde: diaSiguiente(cierreAntesDelAnterior), hasta: cierreAnterior },
-  }
+export function periodosCredito(hoy, diaCierre, periodos = []) {
+  const actual = periodoQueContiene(hoy, diaCierre, periodos)
+  const anterior = periodoQueContiene(diaAnterior(actual.desde), diaCierre, periodos)
+  return { actual, anterior }
 }
 
 // Fecha de pago del estado de cuenta que cerró en "fechaCierre"
-// (el primer "diaPago" que viene después del cierre)
-export function fechaDePago(fechaCierre, diaPago) {
+// (la que dice el estado de cuenta si lo importaste; si no, el primer "diaPago" después del cierre)
+export function fechaDePago(fechaCierre, diaPago, periodos = []) {
+  const guardado = periodos.find((p) => p.hasta === fechaCierre && p.pagarHasta)
+  if (guardado) return guardado.pagarHasta
   const [a, m] = fechaCierre.split('-').map(Number)
   const mismoMes = aISO(fechaConDia(a, m - 1, diaPago))
   return mismoMes > fechaCierre ? mismoMes : aISO(fechaConDia(a, m, diaPago))
@@ -84,8 +103,8 @@ export function interesEstimado(saldoPendiente, tasaMensual) {
 
 // Mes en que se paga la primera cuota de una compra: el estado de cuenta donde cae esa fecha
 export function primerMesDePago(fechaCompra, config) {
-  const cierre = periodosCredito(fechaCompra, config.diaCierre).actual.hasta // cierre del período de la compra
-  return fechaDePago(cierre, config.diaPago).slice(0, 7)
+  const cierre = periodosCredito(fechaCompra, config.diaCierre, config.periodos).actual.hasta // cierre del período de la compra
+  return fechaDePago(cierre, config.diaPago, config.periodos).slice(0, 7)
 }
 
 // Convierte los gastos en cuotas de esta tarjeta en cuotas comprometidas (se calculan, no se guardan)
@@ -93,7 +112,8 @@ export function cuotasDeCompras(movimientos, config) {
   return movimientos
     .filter((m) => m.tipo === 'gasto' && esEnCuotas(m) && mismaTarjeta(m.medioPago, config.nombre))
     .map((m) => {
-      const desde = primerMesDePago(m.fecha, config)
+      // primeraCuota viene del estado de cuenta (algunos bancos cobran la primera cuota un mes después)
+      const desde = m.primeraCuota ?? primerMesDePago(m.fecha, config)
       return {
         id: `compra-${m.id}`,
         deCompra: true, // viene de un gasto: se cambia o se quita editando ese gasto
@@ -139,40 +159,63 @@ export function pagadoAlEstado(config, cierre) {
 // Si del estado anterior registraste un pago MENOR al total, lo que faltó pasa a este con interés.
 // (Si no registraste ningún pago del anterior, se asume que lo pagaste completo y no se arrastra nada.)
 export function estadoDeCuenta(movimientos, config, cuotas, cierre, profundidad = 0) {
-  const { actual: periodo, anterior: previo } = periodosCredito(cierre, config.diaCierre)
-  const fechaPago = fechaDePago(cierre, config.diaPago)
+  const { actual: periodo, anterior: previo } = periodosCredito(cierre, config.diaCierre, config.periodos)
+  const fechaPago = fechaDePago(cierre, config.diaPago, config.periodos)
   const compras = gastadoConTarjeta(movimientos, config.nombre, periodo)
   const cuotasDelMes = sumarCuotas(cuotasVigentes(cuotas, config.nombre, fechaPago.slice(0, 7)))
   const comision = config.comision || 0
 
-  let arrastre = 0
-  let interes = 0
-  const huboPagoAlAnterior = (config.pagos ?? []).some((p) => p.periodo === previo.hasta)
-  if (huboPagoAlAnterior && profundidad < 24) {
-    // Función recursiva: el estado anterior también puede traer algo del suyo
-    arrastre = estadoDeCuenta(movimientos, config, cuotas, previo.hasta, profundidad + 1).pendiente
-    interes = interesEstimado(arrastre, config.tasaMensual)
+  const pagadoMonto = pagadoAlEstado(config, cierre)
+
+  // Si importaste el estado de cuenta de este período, manda lo que dice el banco.
+  // Un total negativo es saldo a favor (pagaste de más): no hay nada que pagar.
+  const oficial = (config.estados ?? []).find((e) => e.hasta === cierre)
+  if (oficial) {
+    const totalOficial = Math.max(oficial.total, 0)
+    return {
+      periodo, fechaPago, compras, cuotas: cuotasDelMes, comision, arrastre: 0, interes: 0,
+      total: totalOficial, pagadoMonto, pendiente: Math.max(totalOficial - pagadoMonto, 0),
+      oficial: true, saldoFavor: Math.max(-oficial.total, 0),
+    }
   }
 
-  const total = compras + cuotasDelMes + comision + arrastre + interes
-  const pagadoMonto = pagadoAlEstado(config, cierre)
+  // El estado anterior importa si registraste un pago parcial (lo que faltó pasa a este con interés)
+  // o si viene de un estado de cuenta importado (puede dejar saldo a favor, que se descuenta de este).
+  let arrastre = 0
+  let interes = 0
+  let favorPrevio = 0
+  const huboPagoAlAnterior = (config.pagos ?? []).some((p) => p.periodo === previo.hasta)
+  const hayEstadosAntes = (config.estados ?? []).some((e) => e.hasta <= previo.hasta)
+  if ((huboPagoAlAnterior || hayEstadosAntes) && profundidad < 24) {
+    // Función recursiva: el estado anterior también puede traer algo del suyo
+    const anterior = estadoDeCuenta(movimientos, config, cuotas, previo.hasta, profundidad + 1)
+    if (huboPagoAlAnterior) {
+      arrastre = anterior.pendiente
+      interes = interesEstimado(arrastre, config.tasaMensual)
+    }
+    favorPrevio = anterior.saldoFavor
+  }
+
+  const bruto = compras + cuotasDelMes + comision + arrastre + interes
+  const total = Math.max(bruto - favorPrevio, 0)
+  const saldoFavor = Math.max(favorPrevio - bruto, 0) // lo que sobra del saldo a favor pasa al siguiente
   // Compatibilidad: antes "Ya lo pagué" solo guardaba la fecha, sin monto -> se toma como pago completo
   const marcadoSinMonto = config.pagadoHasta === cierre && pagadoMonto === 0
   const pendiente = marcadoSinMonto ? 0 : Math.max(total - pagadoMonto, 0)
 
-  return { periodo, fechaPago, compras, cuotas: cuotasDelMes, comision, arrastre, interes, total, pagadoMonto, pendiente }
+  return { periodo, fechaPago, compras, cuotas: cuotasDelMes, comision, arrastre, interes, total, pagadoMonto, pendiente, oficial: false, saldoFavor, favorAplicado: Math.min(favorPrevio, bruto) }
 }
 
 // Todo lo que muestra la sección de crédito, a partir de la configuración de la tarjeta.
 // config = { nombre, diaCierre, diaPago, tasaMensual, comision, pagos: [{ periodo, monto, cuenta, momento }] }
 export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotasGuardadas = []) {
-  const { actual, anterior } = periodosCredito(hoy, config.diaCierre)
+  const { actual, anterior } = periodosCredito(hoy, config.diaCierre, config.periodos)
   // Cuotas anotadas a mano + compras en cuotas hechas con esta tarjeta
   const cuotas = [...cuotasGuardadas, ...cuotasDeCompras(movimientos, config)]
 
   const cerrado = estadoDeCuenta(movimientos, config, cuotas, anterior.hasta) // el que se paga ahora
   const enCurso = estadoDeCuenta(movimientos, config, cuotas, actual.hasta) // el próximo (estimado)
-  const pagado = cerrado.total > 0 && cerrado.pendiente === 0
+  const pagado = (cerrado.total > 0 || cerrado.oficial) && cerrado.pendiente === 0
 
   // Lo que falta pagar en cuotas: desde el estado de cuenta pendiente (o el próximo, si ya pagaste)
   const mesBase = (pagado ? enCurso.fechaPago : cerrado.fechaPago).slice(0, 7)
@@ -194,6 +237,10 @@ export function resumenCredito(movimientos, config, hoy = hoyISO(), cuotasGuarda
     pendiente: cerrado.pendiente,
     fechaPago: cerrado.fechaPago,
     pagado,
+    oficial: cerrado.oficial, // true = los montos vienen del estado de cuenta importado
+    saldoFavor: cerrado.saldoFavor, // lo que queda a tu favor después de este estado de cuenta
+    favorAplicado: cerrado.favorAplicado ?? 0, // saldo a favor anterior que se descontó de este estado
+    estadoOficial: (config.estados ?? []).find((e) => e.hasta === anterior.hasta) ?? null,
     // Estado de cuenta en curso
     usadoActual: enCurso.compras,
     proximaFechaPago: enCurso.fechaPago,

@@ -4,7 +4,9 @@ import { db, borrarMovimiento, restaurarMovimiento, importarMovimientos } from '
 import { leerArchivoWallet } from './lib/wallet.js'
 import { bandeja, leerClave, guardarClave } from './lib/bandeja.js'
 import { leerLinkNuevo, resumenDelMes, gastosPorCategoria } from './lib/calculos.js'
-import { formatearPesos, hoyISO, mesDe, nombreMes } from './lib/formato.js'
+import { formatearPesos, hoyISO, mesDe, nombreMes, ocultarMontos } from './lib/formato.js'
+import { categoriaAprendida } from './lib/reglas.js'
+import ImportarCartola from './components/ImportarCartola.jsx'
 import { datosDeEjemplo } from './lib/ejemplo.js'
 import Inicio from './components/Inicio.jsx'
 import Movimientos from './components/Movimientos.jsx'
@@ -26,6 +28,26 @@ export default function App() {
   const [claveWallet, setClaveWallet] = useState(leerClave) // '' = no conectada
   const sincronizando = useRef(false) // evita revisar la bandeja dos veces al mismo tiempo
   const [verNovedades, setVerNovedades] = useState(false)
+  const [importando, setImportando] = useState(false)
+  // Modo privado: oculta los montos (se recuerda en este iPhone)
+  const [privado, setPrivado] = useState(() => {
+    try {
+      return localStorage.getItem('lumio-privado') === '1'
+    } catch {
+      return false
+    }
+  })
+
+  function cambiarPrivado() {
+    setPrivado((p) => {
+      try {
+        localStorage.setItem('lumio-privado', p ? '0' : '1')
+      } catch {
+        // sin almacenamiento: igual funciona mientras la app esté abierta
+      }
+      return !p
+    })
+  }
 
   // useLiveQuery: la pantalla se actualiza sola cada vez que cambia la base de datos
   const movimientos = useLiveQuery(() => db.movimientos.toArray(), [], null)
@@ -96,7 +118,10 @@ export default function App() {
       if (filas.length === 0) return
 
       const texto = filas.map((f) => f.linea).join('\n')
-      const { movimientos: leidos } = leerArchivoWallet(texto)
+      const { movimientos: leidosSinReglas } = leerArchivoWallet(texto)
+      // Si ya le enseñaste a Lumio la categoría de ese comercio, llega con esa
+      const reglas = await db.reglas.toArray()
+      const leidos = leidosSinReglas.map((m) => ({ ...m, categoria: categoriaAprendida(m.nota, reglas) ?? m.categoria }))
       const idsNuevos = await importarMovimientos(leidos) // 1) guardar en el teléfono
       await bandeja.borrar(clave, filas.map((f) => f.id)) // 2) solo después, borrar de la nube
 
@@ -139,6 +164,7 @@ export default function App() {
   }
 
   if (movimientos === null) return null // cargando (toma milisegundos)
+  ocultarMontos(privado) // antes de dibujar: todas las pantallas usan formatearPesos
 
   const mes = mesDe(hoyISO())
   const botonAjustes = (
@@ -157,12 +183,29 @@ export default function App() {
           alEditar={abrirEdicion}
           alAjustes={() => setPestana('ajustes')}
           alAnalisis={() => setPestana('analisis')}
+          privado={privado}
+          alPrivado={cambiarPrivado}
+          alAnotarFijo={(f) => {
+            setInicial({ tipo: 'gasto', monto: f.monto, nota: f.nombre, categoria: f.categoria, medioPago: f.medioPago ?? '', fijoId: f.id })
+            setHojaAbierta(true)
+          }}
         />
       )}
 
       {pestana === 'movimientos' && (
         <>
-          <Cabecera subtitulo={nombreMes(mes)} titulo="Movimientos" accion={botonAjustes}>
+          <Cabecera
+            subtitulo={nombreMes(mes)}
+            titulo="Movimientos"
+            accion={
+              <div className="flex gap-2">
+                <BotonCabecera etiqueta="Importar cartola en PDF" onClick={() => setImportando(true)}>
+                  <Iconos.pdf />
+                </BotonCabecera>
+                {botonAjustes}
+              </div>
+            }
+          >
             <ResumenMes movimientos={movimientos} mes={mes} />
           </Cabecera>
           <Hoja>
@@ -213,6 +256,7 @@ export default function App() {
               }
               alAviso={(texto) => mostrarAviso(texto, null)}
               alVerNovedades={() => setVerNovedades(true)}
+              alImportar={() => setImportando(true)}
             />
           </Hoja>
         </>
@@ -259,6 +303,10 @@ export default function App() {
       </nav>
 
       {verNovedades && <Novedades alCerrar={cerrarNovedades} />}
+
+      {importando && (
+        <ImportarCartola movimientos={movimientos} alCerrar={() => setImportando(false)} />
+      )}
 
       {hojaAbierta && (
         <NuevoMovimiento

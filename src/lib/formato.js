@@ -6,8 +6,18 @@ const pesos = new Intl.NumberFormat('es-CL', {
   maximumFractionDigits: 0,
 })
 
-// 5990 -> "$5.990"
-export function formatearPesos(monto) {
+// Modo privado: cuando está activo, los montos se muestran como "$•••••".
+// App lo prende o apaga antes de dibujar la pantalla.
+let montosOcultos = false
+
+export function ocultarMontos(ocultar) {
+  montosOcultos = Boolean(ocultar)
+}
+
+// 5990 -> "$5.990". { mostrar: true } muestra el monto aunque el modo privado esté activo
+// (por ejemplo, en el teclado mientras escribes un gasto).
+export function formatearPesos(monto, { mostrar = false } = {}) {
+  if (montosOcultos && !mostrar) return '$•••••'
   return pesos.format(monto)
 }
 

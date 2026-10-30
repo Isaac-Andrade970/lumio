@@ -73,5 +73,8 @@ export const Iconos = {
   mas: () => <Icono grosor={2}><path d="M12 5v14M5 12h14" /></Icono>,
   volver: () => <Icono tamano={18} grosor={2}><path d="m15 6-6 6 6 6" /></Icono>,
   cerrar: () => <Icono tamano={16} grosor={2}><path d="M6 6l12 12M18 6 6 18" /></Icono>,
+  ojo: () => <Icono tamano={20}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Icono>,
+  ojoCerrado: () => <Icono tamano={20}><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.5 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></Icono>,
+  pdf: () => <Icono tamano={20}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></Icono>,
   borrar: () => <Icono tamano={22}><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1Z" /><path d="m17 9-6 6M11 9l6 6" /></Icono>,
 }

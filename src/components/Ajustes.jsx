@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, exportarDatos, reemplazarDatos, guardarCopiaPrevia, leerCopiaPrevia } from '../db.js'
+import { db, exportarDatos, reemplazarDatos, guardarCopiaPrevia, leerCopiaPrevia, guardarFijo, borrarFijo, guardarPreferencia } from '../db.js'
+import { CATEGORIAS } from '../lib/categorias.js'
+import { Iconos } from './Marco.jsx'
 import { tarjetasUsadas, unirTarjetas } from '../lib/calculos.js'
 import { mismaTarjeta } from '../lib/credito.js'
-import { hoyISO } from '../lib/formato.js'
+import { formatearPesos, hoyISO, leerMonto } from '../lib/formato.js'
 import {
   armarRespaldo,
   nombreArchivo,
@@ -21,11 +23,19 @@ import FormularioCuentas from './FormularioCuentas.jsx'
 import ConexionWallet from './ConexionWallet.jsx'
 
 // Pantalla de Ajustes: cuentas, Wallet, respaldo y versión
-export default function Ajustes({ movimientos, wallet, alAviso, alVerNovedades }) {
+export default function Ajustes({ movimientos, wallet, alAviso, alVerNovedades, alImportar }) {
   return (
     <div className="space-y-6">
       <Grupo titulo="Mis cuentas">
         <SeccionCuentas movimientos={movimientos} />
+      </Grupo>
+
+      <Grupo titulo="Cartolas y estados de cuenta">
+        <SeccionImportar alImportar={alImportar} />
+      </Grupo>
+
+      <Grupo titulo="Gastos fijos">
+        <SeccionFijos movimientos={movimientos} />
       </Grupo>
 
       {wallet && (
@@ -85,8 +95,9 @@ function SeccionCuentas({ movimientos }) {
     <div className="rounded-2xl bg-white px-4 py-2 dark:bg-stone-900">
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {cuentas.map((c) => (
-          <li key={c.nombre} className="py-2 text-stone-900 dark:text-stone-100">
-            {c.nombre}
+          <li key={c.nombre} className="flex justify-between gap-3 py-2 text-stone-900 dark:text-stone-100">
+            <span className="truncate">{c.nombre}</span>
+            {c.digitos && <span className="shrink-0 text-sm text-stone-400 tabular-nums">····{c.digitos}</span>}
           </li>
         ))}
       </ul>
@@ -297,5 +308,182 @@ function SeccionRespaldo({ alAviso }) {
         La clave de Wallet no se incluye en el respaldo: si restauras en otro iPhone, vuelve a conectarla.
       </p>
     </div>
+  )
+}
+
+// ---- Cartolas y estados de cuenta ----
+
+function SeccionImportar({ alImportar }) {
+  const titular = useLiveQuery(async () => (await db.preferencias.get('titular'))?.valor ?? '', [], '')
+  const [editando, setEditando] = useState(false)
+  const [nombre, setNombre] = useState('')
+
+  async function guardar(e) {
+    e.preventDefault()
+    await guardarPreferencia('titular', nombre.trim())
+    setEditando(false)
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl bg-white p-4 dark:bg-stone-900">
+      <p className="text-sm text-stone-600 dark:text-stone-300">
+        Importa el PDF que te manda el banco: Lumio agrega lo que falta sin duplicar lo que llegó por Wallet. El PDF se lee en tu iPhone y no se guarda.
+      </p>
+      <button onClick={alImportar} className="boton-morado flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-semibold text-white">
+        <Iconos.pdf /> Importar PDF
+      </button>
+      {editando ? (
+        <form onSubmit={guardar} className="space-y-2">
+          <label className="block text-sm text-stone-600 dark:text-stone-300">
+            Tu nombre como sale en el banco
+            <input
+              autoFocus
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Nombre y apellidos"
+              className="mt-1 w-full rounded-lg bg-stone-100 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 rounded-xl bg-teal-700 py-2 text-sm font-semibold text-white">Guardar</button>
+            <button type="button" onClick={() => setEditando(false)} className="rounded-xl bg-stone-100 px-4 py-2 text-sm text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          {titular ? (
+            <>Las transferencias a o desde <span className="font-medium text-stone-700 dark:text-stone-300">{titular}</span> se toman como movimientos entre tus cuentas. </>
+          ) : (
+            'Tu nombre se toma de la primera cartola que importes, para reconocer las transferencias entre tus cuentas. '
+          )}
+          <button
+            onClick={() => {
+              setNombre(titular)
+              setEditando(true)
+            }}
+            className="font-medium text-teal-700 underline dark:text-teal-300"
+          >
+            Cambiar
+          </button>
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ---- Gastos fijos ----
+
+function SeccionFijos({ movimientos }) {
+  const fijos = useLiveQuery(() => db.fijos.toArray(), [], [])
+  const [editando, setEditando] = useState(null) // null · 'nuevo' · el gasto fijo que se edita
+
+  if (editando) {
+    return <FormularioFijo inicial={editando === 'nuevo' ? null : editando} movimientos={movimientos} alTerminar={() => setEditando(null)} />
+  }
+
+  return (
+    <div className="rounded-2xl bg-white px-4 py-2 dark:bg-stone-900">
+      {fijos.length === 0 ? (
+        <p className="py-2 text-sm text-stone-500 dark:text-stone-400">
+          Arriendo, suscripciones, plan del celular… Anótalos una vez y aparecen en "Próximos pagos" de tu billetera.
+        </p>
+      ) : (
+        <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+          {[...fijos].sort((a, b) => a.dia - b.dia).map((f) => (
+            <li key={f.id}>
+              <button onClick={() => setEditando(f)} className="flex w-full items-center justify-between gap-3 py-2.5 text-left">
+                <span className="min-w-0">
+                  <span className="block truncate text-stone-900 dark:text-stone-100">{f.nombre}</span>
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">Día {f.dia}{f.medioPago ? ` · ${f.medioPago}` : ''}</span>
+                </span>
+                <span className="shrink-0 font-medium text-stone-900 tabular-nums dark:text-stone-100">{formatearPesos(f.monto)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button onClick={() => setEditando('nuevo')} className="mb-1 py-1 text-sm font-medium text-teal-700 dark:text-teal-300">
+        + Agregar gasto fijo
+      </button>
+    </div>
+  )
+}
+
+function FormularioFijo({ inicial, movimientos, alTerminar }) {
+  const cuentas = useLiveQuery(() => db.cuentas.toArray(), [], [])
+  const creditos = useLiveQuery(() => db.creditos.toArray(), [], [])
+  const [nombre, setNombre] = useState(inicial?.nombre ?? '')
+  const [monto, setMonto] = useState(inicial?.monto ?? 0)
+  const [dia, setDia] = useState(inicial?.dia ?? 5)
+  const [categoria, setCategoria] = useState(inicial?.categoria ?? 'cuentas')
+  const [medioPago, setMedioPago] = useState(inicial?.medioPago ?? '')
+  const [error, setError] = useState('')
+  const medios = unirTarjetas(cuentas.map((c) => c.nombre), creditos.map((c) => c.nombre), tarjetasUsadas(movimientos))
+
+  async function guardar(e) {
+    e.preventDefault()
+    if (!nombre.trim()) return setError('Ponle un nombre')
+    if (monto <= 0) return setError('Escribe el monto')
+    await guardarFijo({ ...(inicial ?? {}), nombre: nombre.trim(), monto, dia, categoria, medioPago })
+    alTerminar()
+  }
+
+  const campo = 'w-full rounded-lg bg-stone-100 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-teal-600 dark:bg-stone-800 dark:text-white'
+  return (
+    <form onSubmit={guardar} className="space-y-3 rounded-2xl bg-white p-4 dark:bg-stone-900">
+      <input autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre (ej. Spotify)" aria-label="Nombre del gasto fijo" maxLength={40} className={campo} />
+      <div className="flex gap-2">
+        <input
+          inputMode="numeric"
+          value={monto ? formatearPesos(monto, { mostrar: true }) : ''}
+          onChange={(e) => setMonto(leerMonto(e.target.value))}
+          placeholder="Monto"
+          aria-label="Monto del gasto fijo"
+          className={`${campo} tabular-nums`}
+        />
+        <label className="flex shrink-0 items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
+          Día
+          <select value={dia} onChange={(e) => setDia(Number(e.target.value))} aria-label="Día del mes" className="rounded-lg bg-stone-100 px-2 py-2 text-base dark:bg-stone-800 dark:text-white">
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <select value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Categoría" className={campo}>
+          {CATEGORIAS.gasto.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        <select value={medioPago} onChange={(e) => setMedioPago(e.target.value)} aria-label="Se paga con" className={campo}>
+          <option value="">Se paga con…</option>
+          {medios.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      </div>
+      <p className="h-4 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
+      <div className="flex gap-2">
+        <button type="submit" className="flex-1 rounded-xl bg-teal-700 py-2.5 font-semibold text-white">Guardar</button>
+        {inicial && (
+          <button
+            type="button"
+            onClick={async () => {
+              await borrarFijo(inicial.id)
+              alTerminar()
+            }}
+            className="rounded-xl bg-red-50 px-4 py-2.5 text-red-700 dark:bg-red-950 dark:text-red-300"
+          >
+            Borrar
+          </button>
+        )}
+        <button type="button" onClick={alTerminar} className="rounded-xl bg-stone-100 px-4 py-2.5 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+          Cancelar
+        </button>
+      </div>
+    </form>
   )
 }

@@ -2,7 +2,7 @@
 // El cifrado usa Web Crypto (viene en el navegador): PBKDF2 para convertir la contraseña en llave + AES-GCM.
 
 export const FORMATO_RESPALDO = 1 // súbelo si algún día cambia la estructura del archivo
-export const TABLAS = ['movimientos', 'cuentas', 'creditos', 'cuotas']
+export const TABLAS = ['movimientos', 'cuentas', 'creditos', 'cuotas', 'reglas', 'fijos', 'metas', 'preferencias']
 
 // ---- Armar y revisar ----
 
@@ -51,6 +51,8 @@ export function resumirRespaldo(respaldo) {
     cuentas: d.cuentas?.length ?? 0,
     creditos: d.creditos?.length ?? 0,
     cuotas: d.cuotas?.length ?? 0,
+    fijos: d.fijos?.length ?? 0,
+    metas: d.metas?.length ?? 0,
   }
 }
 

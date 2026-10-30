@@ -1,6 +1,6 @@
 {
   "name": "lumio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "App personal de finanzas (PWA) - gastos, ingresos y proyecciones de ahorro",
   "scripts": {
     "dev": "vite --host",
@@ -14,6 +14,7 @@
   "dependencies": {
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
+    "pdfjs-dist": "^5.4.624",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^3.10.1"
